@@ -1,0 +1,28 @@
+name: "🗺️ Epic"
+description: "A tracking issue that groups ordered work toward a milestone"
+title: "[Epic] <milestone name>"
+labels: ["epic"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: The outcome this epic delivers and how we know it's reached.
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Ordered task list
+      description: Linked issues in recommended implementation order.
+      placeholder: |
+        - [ ] #1
+        - [ ] #2
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / out of scope
+    validations:
+      required: false

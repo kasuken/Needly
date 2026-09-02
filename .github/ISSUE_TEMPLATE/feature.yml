@@ -1,0 +1,67 @@
+name: "🧩 Feature"
+description: "A scoped unit of work for Needly"
+title: "<short, action-oriented title>"
+labels: ["feature"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What should be built, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Product context
+      description: Why this matters. Link the relevant section of docs/productidea.md when applicable.
+    validations:
+      required: false
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope & acceptance criteria
+      description: Bullet list defining what "done" means.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: Explicitly excluded work, to keep the issue small.
+    validations:
+      required: false
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Issues that should be completed first.
+    validations:
+      required: false
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0 (MVP must-have)
+        - P1
+        - P2
+        - P3
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - foundation
+        - github
+        - action-engine
+        - data
+        - ui
+    validations:
+      required: false
