@@ -1,0 +1,91 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@if (_canInstall)
+{
+    <MudTooltip Text="Install Needly">
+        <MudIconButton Icon="@Icons.Material.Outlined.InstallMobile"
+                       Color="Color.Inherit"
+                       OnClick="InstallAsync"
+                       aria-label="Install Needly"/>
+    </MudTooltip>
+}
+
+@if (_showIosInstructions)
+{
+    <aside class="pwa-ios-notice" role="status" aria-live="polite">
+        <span class="pwa-ios-notice-icon" aria-hidden="true">
+            <MudIcon Icon="@Icons.Material.Outlined.AddToHomeScreen"/>
+        </span>
+        <div class="pwa-ios-notice-copy">
+            <MudText Typo="Typo.subtitle2">Install Needly on this iPhone or iPad</MudText>
+            <span class="pwa-ios-instructions">
+                In Safari, tap the Share button, choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.
+            </span>
+        </div>
+        <MudTooltip Text="Dismiss install instructions">
+            <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                           Size="Size.Small"
+                           Color="Color.Inherit"
+                           OnClick="DismissIosInstructions"
+                           aria-label="Dismiss install instructions"/>
+        </MudTooltip>
+    </aside>
+}
+
+@code {
+    private DotNetObjectReference<PwaInstallPrompt>? _dotNetReference;
+    private PwaInstallInterop? _interop;
+    private bool _canInstall;
+    private bool _showIosInstructions;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _interop = new PwaInstallInterop(JS);
+        _dotNetReference = DotNetObjectReference.Create(this);
+        var state = await _interop.InitializeAsync(_dotNetReference);
+        ApplyState(state.CanInstall, state.ShowIosInstructions);
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnPwaStateChanged(bool canInstall, bool showIosInstructions)
+    {
+        await InvokeAsync(() =>
+        {
+            ApplyState(canInstall, showIosInstructions);
+            StateHasChanged();
+        });
+    }
+
+    private async Task InstallAsync()
+    {
+        if (_interop is not null && await _interop.PromptInstallAsync())
+        {
+            _canInstall = false;
+        }
+    }
+
+    private void DismissIosInstructions() => _showIosInstructions = false;
+
+    private void ApplyState(bool canInstall, bool showIosInstructions)
+    {
+        _canInstall = canInstall;
+        _showIosInstructions = showIosInstructions;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_interop is not null)
+        {
+            await _interop.DisposeAsync();
+        }
+
+        _dotNetReference?.Dispose();
+    }
+}

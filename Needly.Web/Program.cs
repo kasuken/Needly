@@ -8,6 +8,10 @@ using Needly.Web.Components;
 using Needly.Web.Components.Views;
 using Needly.Web.GitHub;
 
+AppContext.SetSwitch(
+    "Microsoft.AspNetCore.Components.Routing.NavLink.EnableMatchAllForQueryStringAndFragment",
+    true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.

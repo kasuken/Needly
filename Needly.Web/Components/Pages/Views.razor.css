@@ -3,6 +3,8 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: 2rem;
+    padding-right: 1rem;
+    border-right: 6px solid var(--mud-palette-primary);
 }
 
 @media (max-width: 599.98px) {

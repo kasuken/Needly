@@ -1,15 +1,17 @@
 .inbox-page {
     display: grid;
     width: 100%;
-    gap: 1.5rem;
+    gap: 1.75rem;
 }
 
 .inbox-header {
     display: flex;
-    min-height: 5.75rem;
+    min-height: 7rem;
     align-items: flex-end;
     justify-content: space-between;
     gap: 2rem;
+    padding-right: 1rem;
+    border-right: 6px solid var(--mud-palette-primary);
 }
 
 .inbox-refreshing {
@@ -19,12 +21,14 @@
     justify-content: flex-end;
     gap: 0.45rem;
     padding-bottom: 0.4rem;
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    text-transform: uppercase;
 }
 
 .inbox-loading,
 .inbox-groups {
     display: grid;
-    gap: 1.5rem;
+    gap: 2.25rem;
 }
 
 .inbox-loading {
@@ -32,11 +36,11 @@
 }
 
 .inbox-skeleton {
-    border-radius: 6px;
+    border-radius: 0;
 }
 
 .inbox-groups {
-    animation: inbox-enter 180ms ease-out both;
+    animation: inbox-enter 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .inbox-error {
@@ -52,16 +56,17 @@
 }
 
 @keyframes inbox-enter {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 599.98px) {
     .inbox-header {
-        min-height: 5rem;
+        min-height: 6rem;
         align-items: flex-start;
         flex-direction: column;
         gap: 0.5rem;
+        padding-right: 0.75rem;
     }
 
     .inbox-refreshing {

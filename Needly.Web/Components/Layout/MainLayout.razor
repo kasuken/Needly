@@ -21,11 +21,12 @@
                        OnClick="ToggleDrawer"
                        aria-label="Toggle navigation"/>
         <div class="brand-lockup" aria-label="Needly Action Inbox">
-            <span class="brand-mark" aria-hidden="true"></span>
+            <img class="brand-mark" src="imgs/pwa/brand-mark-96.png" alt="" width="32" height="32"/>
             <MudText Typo="Typo.h6" Class="brand-name">Needly</MudText>
         </div>
         <MudSpacer/>
         <MudText Typo="Typo.subtitle2" Class="appbar-context">Action Inbox</MudText>
+        <PwaInstallPrompt/>
         <AuthorizeView>
             <Authorized Context="authenticationState">
                 <MudText Typo="Typo.caption" Class="appbar-user">@authenticationState.User.Identity?.Name</MudText>

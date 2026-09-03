@@ -1,9 +1,11 @@
 .management-table-wrap {
     width: 100%;
     overflow-x: auto;
-    border: 1px solid var(--mud-palette-divider);
-    border-radius: 6px;
+    border: 1px solid var(--mud-palette-text-primary);
+    border-top: 6px solid var(--mud-palette-primary);
+    border-radius: 0;
     background: var(--mud-palette-surface);
+    box-shadow: 6px 6px 0 color-mix(in srgb, var(--mud-palette-primary) 18%, var(--mud-palette-divider));
 }
 
 .management-table {
@@ -14,24 +16,26 @@
 
 .management-table th,
 .management-table td {
-    padding: 0.7rem 0.85rem;
+    padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--mud-palette-divider);
     text-align: left;
     vertical-align: middle;
 }
 
 .management-table th {
-    color: var(--mud-palette-text-secondary);
-    font-size: 0.7rem;
+    background: var(--needly-ink);
+    color: #f5f7ff;
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-size: 0.68rem;
     font-weight: 600;
     text-transform: uppercase;
 }
 
 .management-table tbody tr:last-child td { border-bottom: 0; }
-.management-table tbody tr:hover { background: color-mix(in srgb, var(--mud-palette-primary) 4%, transparent); }
+.management-table tbody tr:hover { background: color-mix(in srgb, var(--needly-lime) 18%, transparent); }
 .management-primary-link { display: block; color: var(--mud-palette-text-primary); font-weight: 600; text-decoration: none; }
 .management-primary-link:hover { color: var(--mud-palette-primary); }
-.management-meta { display: block; margin-top: 0.15rem; color: var(--mud-palette-text-secondary); font-size: 0.72rem; }
+.management-meta { display: block; margin-top: 0.2rem; color: var(--mud-palette-text-secondary); font-family: "IBM Plex Mono", Consolas, monospace; font-size: 0.7rem; }
 .filter-summary { display: block; min-width: 14rem; max-width: 34rem; overflow-wrap: anywhere; color: var(--mud-palette-text-secondary); }
 .management-actions-heading { text-align: right !important; }
 .management-actions { display: flex; min-width: 10.5rem; justify-content: flex-end; }
