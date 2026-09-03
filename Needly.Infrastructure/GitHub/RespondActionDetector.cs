@@ -27,7 +27,9 @@ internal sealed class RespondActionDetector : IGitHubActionDetector
             return await ResolveClosedAsync(context, cancellationToken).ConfigureAwait(false);
         }
 
-        if (context.Event.EventName is not ("issue_comment" or "pull_request_review_comment") ||
+        if (context.Event.EventName is not ("issue_comment" or "pull_request_review_comment") &&
+            context.Event.EventName != GitHubHistoricalEventNames.IssueComment &&
+            context.Event.EventName != GitHubHistoricalEventNames.PullRequestReviewComment ||
             context.Event.Action != "created")
         {
             return [];
@@ -141,7 +143,9 @@ internal sealed class RespondActionDetector : IGitHubActionDetector
         GitHubActionDetectionContext context,
         GitHubActionWebhookPayload payload)
     {
-        if (context.Event.EventName == "pull_request_review_comment" || payload.PullRequest is not null)
+        if (context.Event.EventName is "pull_request_review_comment" ||
+            context.Event.EventName == GitHubHistoricalEventNames.PullRequestReviewComment ||
+            payload.PullRequest is not null)
         {
             var pullRequest = GitHubActionWebhookParser.RequirePullRequest(payload);
             var number = payload.Number > 0 ? payload.Number : pullRequest.Number;

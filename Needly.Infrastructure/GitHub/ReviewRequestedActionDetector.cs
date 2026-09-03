@@ -15,7 +15,9 @@ internal sealed class ReviewRequestedActionDetector : IGitHubActionDetector
     {
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
-        if (context.Event.EventName is not ("pull_request" or "pull_request_review"))
+        if (context.Event.EventName is not ("pull_request" or "pull_request_review") &&
+            context.Event.EventName != GitHubHistoricalEventNames.PullRequest &&
+            context.Event.EventName != GitHubHistoricalEventNames.PullRequestReview)
         {
             return [];
         }
@@ -30,7 +32,8 @@ internal sealed class ReviewRequestedActionDetector : IGitHubActionDetector
         await context.State.UpsertPullRequestAsync(pullRequestState, cancellationToken).ConfigureAwait(false);
         var occurredAt = payload.Review?.SubmittedAt ?? pullRequest.UpdatedAt ?? context.Event.ReceivedAt;
 
-        if (context.Event.EventName == "pull_request_review")
+        if (context.Event.EventName is "pull_request_review" ||
+            context.Event.EventName == GitHubHistoricalEventNames.PullRequestReview)
         {
             return context.Event.Action == "submitted" && payload.Review is not null
                 ? await ResolveSubmittedReviewAsync(context, pullRequestState, payload.Review.User.Id, occurredAt, cancellationToken)

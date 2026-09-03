@@ -89,6 +89,20 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IGitHubActionEventHandler, GitHubActionEventHandler>();
         services.AddScoped<IGitHubWebhookDispatcher, GitHubWebhookDispatcher>();
         services.AddScoped<IGitHubWebhookRecoveryService, GitHubWebhookRecoveryService>();
+        services.AddScoped<IGitHubHistoricalBootstrapService, GitHubHistoricalBootstrapService>();
+        services.AddOptions<GitHubHistoricalBootstrapOptions>()
+            .Validate(
+                options => options.MaxRepositoriesPerBatch is >= 1 and <= 100,
+                "GitHubHistoricalBootstrap:MaxRepositoriesPerBatch must be between 1 and 100.")
+            .Validate(
+                options => options.MaxPagesPerEndpoint is >= 1 and <= 100,
+                "GitHubHistoricalBootstrap:MaxPagesPerEndpoint must be between 1 and 100.")
+            .Validate(
+                options => options.ClaimTimeout > TimeSpan.Zero,
+                "GitHubHistoricalBootstrap:ClaimTimeout must be positive.")
+            .Validate(
+                options => options.BatchInterval > TimeSpan.Zero,
+                "GitHubHistoricalBootstrap:BatchInterval must be positive.");
         services.AddScoped<IGitHubSettingsService, GitHubSettingsService>();
         services.AddScoped<IGitHubInstallationTokenProvider, GitHubInstallationTokenProvider>();
         services.AddScoped<IGitHubApiClientFactory, GitHubApiClientFactory>();
@@ -103,6 +117,7 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddHostedService<GitHubWebhookBackgroundService>();
+        services.AddHostedService<GitHubHistoricalBootstrapBackgroundService>();
         services.AddHostedService<ActionRiskBackgroundService>();
         services.AddHostedService<ActionSnoozeBackgroundService>();
         return services;

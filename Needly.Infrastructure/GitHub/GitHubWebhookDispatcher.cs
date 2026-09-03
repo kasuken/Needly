@@ -27,7 +27,12 @@ public sealed class GitHubWebhookDispatcher(
         "issues",
         "check_suite",
         "check_run",
-        "workflow_run"
+        "workflow_run",
+        GitHubHistoricalEventNames.PullRequest,
+        GitHubHistoricalEventNames.PullRequestReview,
+        GitHubHistoricalEventNames.PullRequestReviewComment,
+        GitHubHistoricalEventNames.IssueComment,
+        GitHubHistoricalEventNames.CheckRun
     };
     private readonly GitHubAppOptions options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 

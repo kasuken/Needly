@@ -67,6 +67,27 @@ public sealed class InstallationInventoryServiceTests
     }
 
     [Fact]
+    public async Task HandleInstallationAsync_AllRepositoriesWithNullOwner_UsesFullNameOwner()
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var apiClientFactory = new RecordingApiClientFactory(new Dictionary<string, ApiResponse>
+        {
+            [RepositoriesPath] = new(
+                "{\"repositories\":[{\"id\":701,\"name\":\"repo-701\",\"full_name\":\"octo-org/repo-701\",\"owner\":null}]}")
+        });
+        var service = CreateService(database.Context, apiClientFactory);
+
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent("created", repositorySelection: "all"),
+            TestData.CreatedAt,
+            CancellationToken.None);
+
+        var repository = await database.Context.Repositories.SingleAsync();
+        Assert.Equal("octo-org", repository.Owner);
+        Assert.Equal("repo-701", repository.Name);
+    }
+
+    [Fact]
     public async Task HandleInstallationAsync_PersonalOwnerAlreadySignedIn_CreatesActiveInstallationMembership()
     {
         await using var database = await InventoryTestDatabase.CreateAsync();

@@ -15,7 +15,10 @@ internal sealed class ResolveFeedbackActionDetector : IGitHubActionDetector
     {
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
-        if (context.Event.EventName is not ("pull_request" or "pull_request_review" or "pull_request_review_comment"))
+        if (context.Event.EventName is not ("pull_request" or "pull_request_review" or "pull_request_review_comment") &&
+            context.Event.EventName != GitHubHistoricalEventNames.PullRequest &&
+            context.Event.EventName != GitHubHistoricalEventNames.PullRequestReview &&
+            context.Event.EventName != GitHubHistoricalEventNames.PullRequestReviewComment)
         {
             return [];
         }
@@ -38,12 +41,12 @@ internal sealed class ResolveFeedbackActionDetector : IGitHubActionDetector
                 cancellationToken).ConfigureAwait(false),
             "pull_request" when context.Event.Action == "closed" =>
                 ResolveAuthor(context, pullRequest, pullRequestPayload.MergedAt ?? pullRequestPayload.ClosedAt ?? pullRequest.UpdatedAt),
-            "pull_request_review" => await HandleReviewAsync(
+            "pull_request_review" or GitHubHistoricalEventNames.PullRequestReview => await HandleReviewAsync(
                 context,
                 pullRequest,
                 payload,
                 cancellationToken).ConfigureAwait(false),
-            "pull_request_review_comment" => await HandleCommentAsync(
+            "pull_request_review_comment" or GitHubHistoricalEventNames.PullRequestReviewComment => await HandleCommentAsync(
                 context,
                 pullRequest,
                 payload,

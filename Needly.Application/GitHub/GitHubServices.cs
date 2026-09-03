@@ -122,6 +122,13 @@ public interface IGitHubWebhookRecoveryService
     Task<int> RecoverAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>Creates durable action events from current GitHub state for newly available repositories.</summary>
+public interface IGitHubHistoricalBootstrapService
+{
+    /// <summary>Bootstraps the next bounded batch of eligible repositories.</summary>
+    Task<int> BootstrapNextBatchAsync(CancellationToken cancellationToken);
+}
+
 /// <summary>Handles verified GitHub events that may produce inbox actions.</summary>
 public interface IGitHubActionEventHandler
 {

@@ -29,7 +29,8 @@ internal sealed class CiFailureActionDetector : IGitHubActionDetector
             return await HandlePullRequestAsync(context, cancellationToken).ConfigureAwait(false);
         }
 
-        if (context.Event.EventName is not ("check_suite" or "check_run" or "workflow_run"))
+        if (context.Event.EventName is not ("check_suite" or "check_run" or "workflow_run") &&
+            context.Event.EventName != GitHubHistoricalEventNames.CheckRun)
         {
             return [];
         }
@@ -154,7 +155,7 @@ internal sealed class CiFailureActionDetector : IGitHubActionDetector
                 suite.Conclusion,
                 suite.UpdatedAt ?? context.Event.ReceivedAt,
                 suite.PullRequests?.Select(pullRequest => pullRequest.Number).ToArray() ?? []),
-            "check_run" when payload.CheckRun is { } run => new NormalizedCheck(
+            "check_run" or GitHubHistoricalEventNames.CheckRun when payload.CheckRun is { } run => new NormalizedCheck(
                 run.CheckSuite.HeadSha,
                 $"check-run:{run.Name}",
                 run.Name,

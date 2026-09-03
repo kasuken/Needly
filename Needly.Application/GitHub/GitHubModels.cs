@@ -21,7 +21,7 @@ public sealed record GitHubRepositoryPayload(
     [property: JsonPropertyName("id")] long Id,
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("full_name")] string FullName,
-    [property: JsonPropertyName("owner")] GitHubAccountPayload Owner);
+    [property: JsonPropertyName("owner")] GitHubAccountPayload? Owner);
 
 /// <summary>Describes the installation portion of a GitHub webhook.</summary>
 /// <param name="Id">The GitHub installation identifier.</param>

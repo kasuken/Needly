@@ -27,6 +27,12 @@ public sealed class Repository
     /// <summary>Gets whether the installation can currently access the repository.</summary>
     public bool IsActive { get; private set; }
 
+    /// <summary>Gets when historical action bootstrap was last claimed.</summary>
+    public DateTimeOffset? HistoricalBootstrapStartedAt { get; private set; }
+
+    /// <summary>Gets when historical action bootstrap completed.</summary>
+    public DateTimeOffset? HistoricalBootstrapCompletedAt { get; private set; }
+
     /// <summary>Gets when the repository record was created.</summary>
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -73,10 +79,16 @@ public sealed class Repository
     /// <param name="updatedAt">The explicit update timestamp.</param>
     public void Update(string owner, string name, DateTimeOffset updatedAt)
     {
+        var wasInactive = !IsActive;
         Owner = DomainGuard.Required(owner, 100, nameof(owner));
         Name = DomainGuard.Required(name, 100, nameof(name));
         UpdatedAt = DomainGuard.NotBefore(updatedAt, CreatedAt, nameof(updatedAt));
         IsActive = true;
+        if (wasInactive)
+        {
+            HistoricalBootstrapStartedAt = null;
+            HistoricalBootstrapCompletedAt = null;
+        }
     }
 
     /// <summary>Marks the repository unavailable while retaining its durable history.</summary>
@@ -85,5 +97,40 @@ public sealed class Repository
     {
         UpdatedAt = DomainGuard.NotBefore(updatedAt, CreatedAt, nameof(updatedAt));
         IsActive = false;
+    }
+
+    /// <summary>Claims historical action bootstrap when no current claim or completed run exists.</summary>
+    /// <param name="startedAt">The explicit claim timestamp.</param>
+    /// <param name="retryStartedBefore">Claims started at or before this timestamp may be retried.</param>
+    /// <returns><see langword="true"/> when the bootstrap was claimed.</returns>
+    public bool TryStartHistoricalBootstrap(
+        DateTimeOffset startedAt,
+        DateTimeOffset retryStartedBefore)
+    {
+        var timestamp = DomainGuard.NotBefore(startedAt, CreatedAt, nameof(startedAt));
+        var retryCutoff = DomainGuard.Timestamp(retryStartedBefore);
+        if (!IsActive || HistoricalBootstrapCompletedAt is not null ||
+            HistoricalBootstrapStartedAt > retryCutoff)
+        {
+            return false;
+        }
+
+        HistoricalBootstrapStartedAt = timestamp;
+        return true;
+    }
+
+    /// <summary>Marks the current historical action bootstrap complete.</summary>
+    /// <param name="completedAt">The explicit completion timestamp.</param>
+    public void CompleteHistoricalBootstrap(DateTimeOffset completedAt)
+    {
+        if (HistoricalBootstrapStartedAt is not { } startedAt)
+        {
+            throw new InvalidOperationException("Historical bootstrap must be started before it can complete.");
+        }
+
+        HistoricalBootstrapCompletedAt = DomainGuard.NotBefore(
+            completedAt,
+            startedAt,
+            nameof(completedAt));
     }
 }

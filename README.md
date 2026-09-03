@@ -32,6 +32,8 @@ Action behavior defaults are configured in `appsettings.json`: one approval is r
 
 After configuring a GitHub App and applying database migrations, sign in at `/auth/login`. The post-install setup URL returns to `/github/setup`, which links the installation to the signed-in Needly user and redirects to `/settings`.
 
+After an installation is linked, Needly gradually bootstraps actions from the installation's current open pull requests and issues. The bootstrap persists synthetic events through the same durable processing pipeline used by webhooks, so existing review requests, unresolved feedback, failed checks, and conversations appear without waiting for new GitHub activity. It is repository-scoped and resumable; by default, the worker processes up to 25 repositories per 30-second batch and reads at most ten pages from each GitHub endpoint. Configure these limits under `GitHubHistoricalBootstrap`, or set `Enabled` to `false` to disable backfill.
+
 ## Saved Views and Rules
 
 Saved Views and automation Rules use one versioned filter contract. Views filter the authorized Inbox and provide live open counts; Rules apply ordered, per-user effects as GitHub events create or update actions. See [docs/saved-views-and-rules.md](docs/saved-views-and-rules.md) for filter semantics, effects, ordering, team behavior, and persistence details.

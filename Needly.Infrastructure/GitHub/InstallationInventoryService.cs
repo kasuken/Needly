@@ -376,9 +376,10 @@ public sealed class InstallationInventoryService(
 
         foreach (var payload in repositories)
         {
+            var ownerLogin = GetOwnerLogin(payload);
             if (existing.TryGetValue(payload.Id, out var repository))
             {
-                repository.Update(payload.Owner.Login, payload.Name, occurredAt);
+                repository.Update(ownerLogin, payload.Name, occurredAt);
             }
             else
             {
@@ -386,11 +387,29 @@ public sealed class InstallationInventoryService(
                     Guid.NewGuid(),
                     installationId,
                     payload.Id,
-                    payload.Owner.Login,
+                    ownerLogin,
                     payload.Name,
                     occurredAt));
             }
         }
+    }
+
+    private static string GetOwnerLogin(GitHubRepositoryPayload repository)
+    {
+        if (!string.IsNullOrWhiteSpace(repository.Owner?.Login))
+        {
+            return repository.Owner.Login;
+        }
+
+        var fullName = repository.FullName;
+        var separator = string.IsNullOrWhiteSpace(fullName) ? -1 : fullName.LastIndexOf('/');
+        if (separator > 0)
+        {
+            return fullName[..separator];
+        }
+
+        throw new JsonException(
+            $"GitHub repository {repository.Id} did not include an owner or owner-qualified name.");
     }
 
     private static async Task<IReadOnlyList<GitHubRepositoryPayload>> GetAllRepositoriesAsync(

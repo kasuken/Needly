@@ -892,6 +892,78 @@ public sealed class GitHubActionDetectorTests
     }
 
     [Fact]
+    public async Task HistoricalBootstrapEvents_CurrentOpenState_CreatesExpectedActionTypes()
+    {
+        await using var database = await DetectorTestDatabase.CreateAsync();
+        await SeedAsync(database.Context);
+        var lookup = new FakePullRequestLookup
+        {
+            Result = ReadyPullRequest(BaseTime.AddMinutes(4)) with
+            {
+                HasChangesRequested = true,
+                CheckState = GitHubCheckState.Failing
+            }
+        };
+        var handler = CreateHandler(database, lookup);
+
+        await HandleAsync(
+            database.Context,
+            handler,
+            "needly_historical_pull_request",
+            "opened",
+            PullRequestPayload(false, BaseTime.AddMinutes(1), []),
+            BaseTime.AddMinutes(1));
+        await HandleAsync(
+            database.Context,
+            handler,
+            "needly_historical_pull_request_review",
+            "submitted",
+            PullRequestReviewPayload(
+                OtherReviewerGitHubId,
+                "other-reviewer",
+                "changes_requested",
+                BaseTime.AddMinutes(2)),
+            BaseTime.AddMinutes(2));
+        await HandleAsync(
+            database.Context,
+            handler,
+            "needly_historical_pull_request_review_comment",
+            "created",
+            PullRequestReviewCommentPayload(
+                "created",
+                BaseTime.AddMinutes(3),
+                "@reviewer please verify this change.",
+                OtherReviewerGitHubId,
+                "other-reviewer"),
+            BaseTime.AddMinutes(3));
+        await HandleAsync(
+            database.Context,
+            handler,
+            "pull_request",
+            "ready_for_review",
+            PullRequestPayload(false, BaseTime.AddMinutes(4), [ReviewerGitHubId]),
+            BaseTime.AddMinutes(4));
+        await HandleAsync(
+            database.Context,
+            handler,
+            "needly_historical_check_run",
+            "completed",
+            CheckRunPayload("Build", "failure", "head-1", BaseTime.AddMinutes(5)),
+            BaseTime.AddMinutes(5));
+
+        await using var verification = database.CreateContext();
+        var openActionTypes = await verification.Actions
+            .AsNoTracking()
+            .Where(action => action.State == ActionState.Open)
+            .Select(action => action.Type)
+            .OrderBy(type => type)
+            .ToListAsync();
+        Assert.Equal(
+            [ActionType.Review, ActionType.Respond, ActionType.Fix, ActionType.Resolve],
+            openActionTypes);
+    }
+
+    [Fact]
     public void RegisteredDetectors_HaveStableUniqueKeysAndOrders()
     {
         var detectors = GetDetectors();

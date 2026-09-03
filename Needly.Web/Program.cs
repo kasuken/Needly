@@ -22,6 +22,9 @@ builder.Services.AddOptions<GitHubAppOptions>()
 builder.Services.AddOptions<GitHubActionOptions>()
     .Bind(builder.Configuration.GetSection(GitHubActionOptions.SectionName))
     .ValidateOnStart();
+builder.Services.AddOptions<GitHubHistoricalBootstrapOptions>()
+    .Bind(builder.Configuration.GetSection(GitHubHistoricalBootstrapOptions.SectionName))
+    .ValidateOnStart();
 builder.Services.AddOptions<ActionRiskOptions>()
     .Bind(builder.Configuration.GetSection(ActionRiskOptions.SectionName))
     .ValidateOnStart();
