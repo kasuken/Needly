@@ -415,7 +415,7 @@ public partial class Inbox
                 edit.Filter,
                 _disposeCancellation.Token);
             await ViewState.ReloadAsync(_disposeCancellation.Token);
-            Navigation.NavigateTo($"/?view={Uri.EscapeDataString(view.Key)}");
+            Navigation.NavigateTo($"/inbox?view={Uri.EscapeDataString(view.Key)}");
             Snackbar.Add("View saved", Severity.Success);
         }
         catch (InvalidOperationException exception)

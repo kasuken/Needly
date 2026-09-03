@@ -80,7 +80,7 @@
                         @foreach (var view in ViewState.Views)
                         {
                             <MudNavLink @key="view.Key"
-                                        Href="@($"/?view={view.Key}")"
+                                        Href="@($"/inbox?view={view.Key}")"
                                         Match="NavLinkMatch.All"
                                         Icon="@Icons.Material.Outlined.FilterAlt">
                                 <span class="drawer-view-name">@view.Name</span>
@@ -168,7 +168,7 @@
         {
             await OnboardingService.CompleteAsync(userId, CancellationToken.None);
             _showOnboarding = false;
-            Navigation.NavigateTo(destination == OnboardingDestination.Settings ? "/settings" : "/");
+            Navigation.NavigateTo(destination == OnboardingDestination.Settings ? "/settings" : "/inbox");
         }
         catch (DbException exception)
         {

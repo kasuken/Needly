@@ -8,7 +8,7 @@
             {
                 <tr @key="view.Key">
                     <td>
-                        <a href="/?view=@view.Key" class="management-primary-link">@view.Name</a>
+                        <a href="/inbox?view=@view.Key" class="management-primary-link">@view.Name</a>
                         @if (view.IsBuiltIn) { <span class="management-meta">Built in</span> }
                     </td>
                     <td><span class="filter-summary">@Describe(view.Filter)</span></td>
