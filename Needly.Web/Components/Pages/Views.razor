@@ -1,0 +1,79 @@
+@page "/views"
+@attribute [Authorize]
+@implements IDisposable
+@inject SavedViewNavigationState ViewState
+@inject ISavedViewService ViewService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILogger<Views> Logger
+
+<PageTitle>Views · Needly</PageTitle>
+
+<MudStack Spacing="4" Class="page-stack">
+    <header class="management-page-header">
+        <div><MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="page-kicker">Saved focus</MudText><MudText Typo="Typo.h1" HtmlTag="h1">Views</MudText><MudText Typo="Typo.body1" Color="Color.Secondary" Class="page-description">Reusable perspectives over the actions you are authorized to see.</MudText></div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="CreateAsync">New view</MudButton>
+    </header>
+    <MudDivider/>
+    @if (ViewState.IsLoading) { <MudProgressLinear Indeterminate="true" Color="Color.Primary"/> }
+    else if (ViewState.HasError) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">Unable to load views.<MudButton Variant="Variant.Text" OnClick="RetryAsync">Retry</MudButton></MudAlert> }
+    else { <SavedViewList Items="@ViewState.Views" Edit="EditAsync" Delete="DeleteAsync" Move="MoveAsync"/> }
+</MudStack>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+    private Guid? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ViewState.Changed += OnStateChangedAsync;
+        var state = AuthenticationState is null ? null : await AuthenticationState;
+        if (Guid.TryParse(state?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var userId))
+        {
+            _userId = userId;
+            await ViewState.InitializeAsync(userId);
+        }
+    }
+
+    public void Dispose() => ViewState.Changed -= OnStateChangedAsync;
+    private async void OnStateChangedAsync() => await InvokeAsync(StateHasChanged);
+    private Task RetryAsync() => ViewState.ReloadAsync();
+    private Task CreateAsync() => ShowEditorAsync(null);
+    private Task EditAsync(SavedViewItem view) => ShowEditorAsync(view);
+
+    private async Task ShowEditorAsync(SavedViewItem? view)
+    {
+        if (_userId is not { } userId) return;
+        var parameters = new DialogParameters
+        {
+            [nameof(SavedViewEditorDialog.InitialName)] = view?.Name,
+            [nameof(SavedViewEditorDialog.InitialFilter)] = view?.Filter ?? new ActionFilter()
+        };
+        var dialog = await DialogService.ShowAsync<SavedViewEditorDialog>(view is null ? "New view" : "Edit view", parameters, new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Medium, CloseButton = true });
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: SavedViewEditResult edit }) return;
+        try
+        {
+            if (view?.Id is { } id) await ViewService.UpdateAsync(userId, id, edit.Name, edit.Filter, CancellationToken.None);
+            else await ViewService.CreateAsync(userId, edit.Name, edit.Filter, CancellationToken.None);
+            await ViewState.ReloadAsync();
+            Snackbar.Add("View saved", Severity.Success);
+        }
+        catch (InvalidOperationException exception) { Logger.LogWarning(exception, "Could not save view for {UserId}", userId); Snackbar.Add("A view with that name already exists.", Severity.Warning); }
+    }
+
+    private async Task DeleteAsync(SavedViewItem view)
+    {
+        if (_userId is not { } userId || view.Id is not { } id) return;
+        if (await DialogService.ShowMessageBoxAsync("Delete view?", $"Delete '{view.Name}'?", yesText: "Delete", cancelText: "Cancel") != true) return;
+        await ViewService.DeleteAsync(userId, id, CancellationToken.None);
+        await ViewState.ReloadAsync();
+    }
+
+    private async Task MoveAsync(SavedViewMoveRequest request)
+    {
+        if (_userId is not { } userId || request.View.Id is not { } id) return;
+        await ViewService.MoveAsync(userId, id, request.Direction, CancellationToken.None);
+        await ViewState.ReloadAsync();
+    }
+}

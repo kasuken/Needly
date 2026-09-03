@@ -1,0 +1,45 @@
+<section class="inbox-filter-bar" aria-label="Inbox filters">
+    <div class="filter-bar-heading">
+        <div class="filter-active-view">
+            <MudIcon Icon="@Icons.Material.Outlined.FilterAlt" Size="Size.Small"/>
+            <MudText Typo="Typo.subtitle2">@ActiveViewName</MudText>
+            @if (ActiveCriteriaCount > 0)
+            {
+                <MudChip T="int" Value="@ActiveCriteriaCount" Size="Size.Small" Color="Color.Primary">
+                    @ActiveCriteriaCount filters
+                </MudChip>
+            }
+        </div>
+        <div class="filter-actions">
+            <MudTooltip Text="Clear filters">
+                <MudIconButton Icon="@Icons.Material.Outlined.FilterAltOff" Size="Size.Small"
+                               Disabled="@(ActiveCriteriaCount == 0)" OnClick="ClearAsync"
+                               aria-label="Clear filters"/>
+            </MudTooltip>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                       StartIcon="@Icons.Material.Outlined.BookmarkAdd" OnClick="SaveRequested">
+                Save view
+            </MudButton>
+        </div>
+    </div>
+    <ActionFilterEditor Value="@Value" ValueChanged="ValueChanged"/>
+</section>
+
+@code {
+    [Parameter] public ActionFilter Value { get; set; } = new();
+    [Parameter] public EventCallback<ActionFilter> ValueChanged { get; set; }
+    [Parameter] public EventCallback SaveRequested { get; set; }
+    [Parameter] public string ActiveViewName { get; set; } = "All actions";
+
+    private int ActiveCriteriaCount =>
+        (Value.Types.Length > 0 ? 1 : 0) +
+        (Value.States.Length > 0 ? 1 : 0) +
+        (Value.Repositories.Length > 0 ? 1 : 0) +
+        (Value.Organizations.Length > 0 ? 1 : 0) +
+        (Value.Authors.Length > 0 ? 1 : 0) +
+        (Value.AssigneeScope != ActionAssigneeScope.Any ? 1 : 0) +
+        (Value.WaitingAtLeast is not null ? 1 : 0) +
+        (Value.BotInvolvement != BotInvolvementFilter.Any ? 1 : 0);
+
+    private Task ClearAsync() => ValueChanged.InvokeAsync(new ActionFilter());
+}

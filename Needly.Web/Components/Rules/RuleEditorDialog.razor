@@ -1,0 +1,76 @@
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudTextField Label="Rule name" @bind-Value="_name" Required="true"
+                          RequiredError="Enter a rule name" MaxLength="100" Counter="100"/>
+            <ActionFilterEditor Value="@_filter" ValueChanged="OnFilterChanged"/>
+            <div class="rule-effect-fields">
+                <MudSelect T="RuleEffect" Label="Effect" @bind-Value="_effect">
+                    @foreach (var effect in Enum.GetValues<RuleEffect>())
+                    {
+                        <MudSelectItem Value="@effect">@EffectLabel(effect)</MudSelectItem>
+                    }
+                </MudSelect>
+                @if (_effect == RuleEffect.Snooze)
+                {
+                    <MudNumericField T="double" Label="Snooze hours" @bind-Value="_snoozeHours"
+                                     Min="0.1" Required="true"/>
+                }
+            </div>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_isValid || _saving)"
+                   OnClick="SubmitAsync">@(_saving ? "Saving" : "Save rule")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? Dialog { get; set; }
+    [Parameter] public AutomationRuleItem? Rule { get; set; }
+
+    private MudForm? _form;
+    private string? _name;
+    private ActionFilter _filter = new();
+    private RuleEffect _effect = RuleEffect.MarkFyi;
+    private double _snoozeHours = 4;
+    private bool _isValid;
+    private bool _saving;
+
+    protected override void OnParametersSet()
+    {
+        if (Rule is null || _name is not null) return;
+        _name = Rule.Name;
+        _filter = Rule.Filter;
+        _effect = Rule.Effect;
+        _snoozeHours = Rule.SnoozeDuration?.TotalHours ?? 4;
+    }
+
+    private Task OnFilterChanged(ActionFilter filter) { _filter = filter; return Task.CompletedTask; }
+    private void Cancel() => Dialog?.Cancel();
+
+    private async Task SubmitAsync()
+    {
+        if (_form is null) return;
+        _saving = true;
+        try
+        {
+            await _form.ValidateAsync();
+            if (_form.IsValid && !string.IsNullOrWhiteSpace(_name))
+            {
+                TimeSpan? duration = _effect == RuleEffect.Snooze ? TimeSpan.FromHours(_snoozeHours) : null;
+                Dialog?.Close(DialogResult.Ok(new RuleEditResult(_name.Trim(), _filter, _effect, duration)));
+            }
+        }
+        finally { _saving = false; }
+    }
+
+    private static string EffectLabel(RuleEffect effect) => effect switch
+    {
+        RuleEffect.AutoArchive => "Auto-archive",
+        RuleEffect.MarkFyi => "Mark FYI",
+        RuleEffect.Pin => "Pin / prioritize",
+        _ => effect.ToString()
+    };
+}

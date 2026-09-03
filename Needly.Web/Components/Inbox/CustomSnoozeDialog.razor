@@ -1,0 +1,70 @@
+@inject TimeProvider TimeProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="snooze-dialog-copy">
+            Choose when this action should return. Times are entered in UTC.
+        </MudText>
+        <MudForm @ref="_form" @bind-IsValid="_isValid" Class="snooze-form">
+            <MudDatePicker Label="UTC date"
+                           @bind-Date="_date"
+                           MinDate="@TimeProvider.GetUtcNow().UtcDateTime.Date"
+                           DateFormat="yyyy-MM-dd"
+                           Required="true"
+                           RequiredError="Choose a date"/>
+            <MudTimePicker Label="UTC time"
+                           @bind-Time="_time"
+                           AmPm="false"
+                           Required="true"
+                           RequiredError="Choose a time"/>
+            @if (!IsFuture)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Error">
+                    Choose a time later than now.
+                </MudText>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(!_isValid || !IsFuture)"
+                   OnClick="SubmitAsync">
+            Snooze
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? Dialog { get; set; }
+
+    private MudForm? _form;
+    private DateTime? _date = TimeProvider.System.GetUtcNow().UtcDateTime.Date.AddDays(1);
+    private TimeSpan? _time = new(9, 0, 0);
+    private bool _isValid;
+
+    private DateTimeOffset? Deadline => _date is null || _time is null
+        ? null
+        : new DateTimeOffset(
+            DateTime.SpecifyKind(_date.Value.Date.Add(_time.Value), DateTimeKind.Utc));
+
+    private bool IsFuture => Deadline > TimeProvider.GetUtcNow();
+
+    private void Cancel() => Dialog?.Cancel();
+
+    private async Task SubmitAsync()
+    {
+        if (_form is null)
+        {
+            return;
+        }
+
+        await _form.ValidateAsync();
+        if (_form.IsValid && IsFuture && Deadline is { } deadline)
+        {
+            Dialog?.Close(DialogResult.Ok(deadline));
+        }
+    }
+}

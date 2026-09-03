@@ -1,0 +1,38 @@
+.inbox-filter-bar {
+    display: grid;
+    gap: 0.8rem;
+    padding: 0.85rem 1rem 1rem;
+    border: 1px solid var(--mud-palette-divider);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--mud-palette-surface) 92%, transparent);
+}
+
+.filter-bar-heading,
+.filter-active-view,
+.filter-actions {
+    display: flex;
+    align-items: center;
+}
+
+.filter-bar-heading {
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.filter-active-view,
+.filter-actions {
+    min-width: 0;
+    gap: 0.5rem;
+}
+
+@media (max-width: 599.98px) {
+    .filter-bar-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .filter-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}

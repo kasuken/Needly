@@ -1,0 +1,10 @@
+.rule-effect-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(10rem, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+@media (max-width: 599.98px) {
+    .rule-effect-fields { grid-template-columns: 1fr; }
+}

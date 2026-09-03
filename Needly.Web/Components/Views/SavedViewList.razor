@@ -1,0 +1,52 @@
+<div class="management-table-wrap">
+    <table class="management-table">
+        <thead>
+            <tr><th>View</th><th>Filter</th><th>Open</th><th class="management-actions-heading">Actions</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var view in Items)
+            {
+                <tr @key="view.Key">
+                    <td>
+                        <a href="/?view=@view.Key" class="management-primary-link">@view.Name</a>
+                        @if (view.IsBuiltIn) { <span class="management-meta">Built in</span> }
+                    </td>
+                    <td><span class="filter-summary">@Describe(view.Filter)</span></td>
+                    <td><MudChip T="int" Value="@view.OpenCount" Size="Size.Small" Variant="Variant.Outlined">@view.OpenCount</MudChip></td>
+                    <td class="management-actions">
+                        @if (!view.IsBuiltIn)
+                        {
+                            <MudTooltip Text="Move up"><MudIconButton Icon="@Icons.Material.Outlined.KeyboardArrowUp" Size="Size.Small" Disabled="@(view == CustomItems.FirstOrDefault())" OnClick="() => Move.InvokeAsync(new SavedViewMoveRequest(view, -1))" aria-label="Move view up"/></MudTooltip>
+                            <MudTooltip Text="Move down"><MudIconButton Icon="@Icons.Material.Outlined.KeyboardArrowDown" Size="Size.Small" Disabled="@(view == CustomItems.LastOrDefault())" OnClick="() => Move.InvokeAsync(new SavedViewMoveRequest(view, 1))" aria-label="Move view down"/></MudTooltip>
+                            <MudTooltip Text="Edit"><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => Edit.InvokeAsync(view)" aria-label="Edit view"/></MudTooltip>
+                            <MudTooltip Text="Delete"><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => Delete.InvokeAsync(view)" aria-label="Delete view"/></MudTooltip>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<SavedViewItem> Items { get; set; } = [];
+    [Parameter] public EventCallback<SavedViewItem> Edit { get; set; }
+    [Parameter] public EventCallback<SavedViewItem> Delete { get; set; }
+    [Parameter] public EventCallback<SavedViewMoveRequest> Move { get; set; }
+
+    private IReadOnlyList<SavedViewItem> CustomItems => Items.Where(item => !item.IsBuiltIn).ToArray();
+
+    private static string Describe(ActionFilter filter)
+    {
+        var parts = new List<string>();
+        if (filter.Types.Length > 0) parts.Add(string.Join(", ", filter.Types));
+        if (filter.States.Length > 0) parts.Add(string.Join(", ", filter.States));
+        if (filter.AssigneeScope != ActionAssigneeScope.Any) parts.Add(filter.AssigneeScope == ActionAssigneeScope.Me ? "me" : "my team");
+        if (filter.Repositories.Length > 0) parts.Add(string.Join(", ", filter.Repositories));
+        if (filter.Organizations.Length > 0) parts.Add(string.Join(", ", filter.Organizations));
+        if (filter.Authors.Length > 0) parts.Add($"author {string.Join(", ", filter.Authors)}");
+        if (filter.WaitingAtLeast is { } waiting) parts.Add($"waiting {waiting.TotalHours:g}h+");
+        if (filter.BotInvolvement != BotInvolvementFilter.Any) parts.Add(filter.BotInvolvement == BotInvolvementFilter.OnlyBots ? "bots involved" : "no bots");
+        return parts.Count == 0 ? "All authorized actions" : string.Join(" · ", parts);
+    }
+}

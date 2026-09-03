@@ -1,0 +1,76 @@
+.inbox-page {
+    display: grid;
+    width: 100%;
+    gap: 1.5rem;
+}
+
+.inbox-header {
+    display: flex;
+    min-height: 5.75rem;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.inbox-refreshing {
+    display: flex;
+    min-width: 6rem;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    padding-bottom: 0.4rem;
+}
+
+.inbox-loading,
+.inbox-groups {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.inbox-loading {
+    gap: 0.65rem;
+}
+
+.inbox-skeleton {
+    border-radius: 6px;
+}
+
+.inbox-groups {
+    animation: inbox-enter 180ms ease-out both;
+}
+
+.inbox-error {
+    margin-top: 0.25rem;
+}
+
+.inbox-error-content {
+    display: flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+@keyframes inbox-enter {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 599.98px) {
+    .inbox-header {
+        min-height: 5rem;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .inbox-refreshing {
+        justify-content: flex-start;
+        padding-bottom: 0;
+    }
+
+    .inbox-error-content {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

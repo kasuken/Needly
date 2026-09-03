@@ -1,0 +1,80 @@
+@page "/"
+@page "/inbox"
+@attribute [Authorize]
+@implements IAsyncDisposable
+@using Needly.Web.Components.Inbox
+
+<PageTitle>Inbox · Needly</PageTitle>
+
+<div class="inbox-page" @ref="_inboxRoot">
+    <header class="inbox-header">
+        <div>
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="page-kicker">Inbox</MudText>
+            <MudText Typo="Typo.h1" HtmlTag="h1">@Summary</MudText>
+        </div>
+        @if (_refreshing)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="inbox-refreshing">
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary"/>
+                Updating
+            </MudText>
+        }
+    </header>
+
+    <MudDivider/>
+
+    <InboxFilterBar Value="@_filter"
+                    ValueChanged="OnFilterChangedAsync"
+                    SaveRequested="SaveViewAsync"
+                    ActiveViewName="@_activeViewName"/>
+
+    @if (_loading)
+    {
+        <section class="inbox-loading" aria-label="Loading inbox">
+            @for (var index = 0; index < 4; index++)
+            {
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="148px" Class="inbox-skeleton"/>
+            }
+        </section>
+    }
+    else if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="inbox-error">
+            <div class="inbox-error-content">
+                <span>We couldn't load your inbox. Try again.</span>
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Error"
+                           StartIcon="@Icons.Material.Outlined.Refresh"
+                           OnClick="RetryAsync">
+                    Retry
+                </MudButton>
+            </div>
+        </MudAlert>
+    }
+    else if (_actions.Count == 0)
+    {
+        <section class="empty-state" aria-labelledby="inbox-empty-title">
+            <div class="empty-state-icon" aria-hidden="true">
+                <MudIcon Icon="@Icons.Material.Outlined.DoneAll" Size="Size.Large"/>
+            </div>
+            <MudText Typo="Typo.h5" HtmlTag="h2" id="inbox-empty-title">
+                @(HasActiveFilter ? "Nothing matches this view" : "Nothing needs you")
+            </MudText>
+        </section>
+    }
+    else
+    {
+        <div class="inbox-groups">
+            @foreach (var group in Groups)
+            {
+                <ActionGroup @key="group.Title"
+                             Title="@group.Title"
+                             Actions="@group.Actions"
+                             SelectedActionId="@_selectedActionId"
+                             OnArchive="ArchiveAsync"
+                             OnSnooze="SnoozeAsync"
+                             OnMute="MuteAsync"/>
+            }
+        </div>
+    }
+</div>

@@ -1,0 +1,77 @@
+<article class="@CssClass"
+         data-inbox-action
+         data-action-id="@Action.ActionId"
+         tabindex="-1"
+         aria-current="@(Selected ? "true" : null)">
+    <div class="action-row-main">
+        <div class="action-row-heading">
+            <MudIcon Icon="@ActionIcon" Size="Size.Small" Class="action-type-icon"/>
+            <MudText Typo="Typo.caption" Class="action-repository">
+                @Action.RepositoryOwner/@Action.RepositoryName
+                <span class="action-subject">@SubjectLabel #@Action.SubjectNumber</span>
+            </MudText>
+            @if (Action.IsAtRisk)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
+                    At risk
+                </MudChip>
+            }
+        </div>
+
+        <MudText Typo="Typo.h6" HtmlTag="h3" Class="action-title">@Action.SubjectTitle</MudText>
+        <MudText Typo="Typo.body2" Class="action-reason">@Action.Reason</MudText>
+
+        <div class="action-meta">
+            <span><MudIcon Icon="@Icons.Material.Outlined.Person" Size="Size.Small"/>@Action.AssigneeDisplay</span>
+            <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" Size="Size.Small"/>Waiting @WaitingLabel</span>
+            @if (!string.IsNullOrWhiteSpace(Action.Context))
+            {
+                <span class="action-trigger"><MudIcon Icon="@Icons.Material.Outlined.Bolt" Size="Size.Small"/>@Action.TriggerDisplay</span>
+            }
+        </div>
+    </div>
+
+    <div class="action-row-controls">
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   EndIcon="@Icons.Material.Outlined.NorthEast"
+                   Href="@Action.SubjectUrl"
+                   Target="_blank"
+                   rel="noopener noreferrer"
+                   data-primary-action>
+            @PrimaryLabel
+        </MudButton>
+        <MudMenu Icon="@Icons.Material.Outlined.MoreVert"
+                 Size="Size.Small"
+                 Dense="true"
+                 AriaLabel="Action options">
+            <MudMenuItem Icon="@Icons.Material.Outlined.Archive"
+                         OnClick="ArchiveAsync">
+                Archive
+            </MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.Schedule"
+                         OnClick="@(() => SnoozeAsync(ActionSnoozeChoice.LaterToday))">
+                Snooze until later today
+            </MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.Today"
+                         OnClick="@(() => SnoozeAsync(ActionSnoozeChoice.Tomorrow))">
+                Snooze until tomorrow
+            </MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.DateRange"
+                         OnClick="@(() => SnoozeAsync(ActionSnoozeChoice.NextWeek))">
+                Snooze until next week
+            </MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.EditCalendar"
+                         OnClick="@(() => SnoozeAsync(ActionSnoozeChoice.Custom))">
+                Custom snooze...
+            </MudMenuItem>
+            <MudDivider/>
+            <MudMenuItem Icon="@Icons.Material.Outlined.NotificationsOff"
+                         Class="mute-menu-item"
+                         OnClick="MuteAsync">
+                Mute this subject
+            </MudMenuItem>
+        </MudMenu>
+    </div>
+</article>

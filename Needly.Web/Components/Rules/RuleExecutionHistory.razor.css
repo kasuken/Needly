@@ -1,0 +1,27 @@
+.rule-history {
+    margin-top: 1rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--mud-palette-divider);
+}
+
+.history-empty { padding: 1.25rem 0; }
+
+.history-list {
+    display: grid;
+    margin-top: 1rem;
+    border-top: 1px solid var(--mud-palette-divider);
+}
+
+.history-row {
+    display: grid;
+    grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--mud-palette-divider);
+}
+
+@media (max-width: 599.98px) {
+    .history-row { grid-template-columns: 1.5rem minmax(0, 1fr); }
+    .history-row > :last-child { grid-column: 2; }
+}

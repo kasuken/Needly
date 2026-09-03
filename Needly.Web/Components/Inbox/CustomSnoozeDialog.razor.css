@@ -1,0 +1,18 @@
+.snooze-dialog-copy {
+    max-width: 28rem;
+}
+
+.snooze-form {
+    display: grid;
+    min-width: min(28rem, 75vw);
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1.25rem;
+}
+
+@media (max-width: 599.98px) {
+    .snooze-form {
+        min-width: 0;
+        grid-template-columns: 1fr;
+    }
+}

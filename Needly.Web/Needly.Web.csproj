@@ -1,10 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+    <ItemGroup>
+      <ProjectReference Include="..\Needly.Application\Needly.Application.csproj" />
+      <ProjectReference Include="..\Needly.Infrastructure\Needly.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="MudBlazor" Version="9.9.0" />
+    </ItemGroup>
+
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+        <UserSecretsId>needly-web-github-app</UserSecretsId>
     </PropertyGroup>
 
 </Project>

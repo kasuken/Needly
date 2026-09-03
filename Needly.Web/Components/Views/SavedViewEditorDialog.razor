@@ -1,0 +1,50 @@
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudTextField Label="View name" @bind-Value="_name" Required="true"
+                          RequiredError="Enter a view name" MaxLength="100" Counter="100"/>
+            <ActionFilterEditor Value="@_filter" ValueChanged="OnFilterChanged"/>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_isValid || _saving)"
+                   OnClick="SubmitAsync">@(_saving ? "Saving" : "Save view")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? Dialog { get; set; }
+    [Parameter] public string? InitialName { get; set; }
+    [Parameter] public ActionFilter InitialFilter { get; set; } = new();
+
+    private MudForm? _form;
+    private string? _name;
+    private ActionFilter _filter = new();
+    private bool _isValid;
+    private bool _saving;
+
+    protected override void OnParametersSet()
+    {
+        _name ??= InitialName;
+        _filter = InitialFilter;
+    }
+
+    private Task OnFilterChanged(ActionFilter filter) { _filter = filter; return Task.CompletedTask; }
+    private void Cancel() => Dialog?.Cancel();
+
+    private async Task SubmitAsync()
+    {
+        if (_form is null) return;
+        _saving = true;
+        try
+        {
+            await _form.ValidateAsync();
+            if (_form.IsValid && !string.IsNullOrWhiteSpace(_name))
+            {
+                Dialog?.Close(DialogResult.Ok(new SavedViewEditResult(_name.Trim(), _filter)));
+            }
+        }
+        finally { _saving = false; }
+    }
+}

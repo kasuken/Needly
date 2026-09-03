@@ -1,0 +1,53 @@
+<div class="management-table-wrap">
+    <table class="management-table">
+        <thead><tr><th>Rule</th><th>Condition</th><th>Effect</th><th>Enabled</th><th class="management-actions-heading">Actions</th></tr></thead>
+        <tbody>
+            @foreach (var rule in Items)
+            {
+                <tr @key="rule.Id" class="@(rule.IsEnabled ? null : "management-row-disabled")">
+                    <td><span class="management-primary">@rule.Name</span><span class="management-meta">Order @(rule.SortOrder + 1)</span></td>
+                    <td><span class="filter-summary">@Describe(rule.Filter)</span></td>
+                    <td><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@EffectLabel(rule)</MudChip></td>
+                    <td><MudSwitch T="bool" Value="@rule.IsEnabled" ValueChanged="value => Toggle.InvokeAsync(new RuleToggleRequest(rule, value))" Color="Color.Primary" aria-label="Toggle rule"/></td>
+                    <td class="management-actions">
+                        <MudTooltip Text="Move up"><MudIconButton Icon="@Icons.Material.Outlined.KeyboardArrowUp" Size="Size.Small" Disabled="@(rule == Items.FirstOrDefault())" OnClick="() => Move.InvokeAsync(new RuleMoveRequest(rule, -1))" aria-label="Move rule up"/></MudTooltip>
+                        <MudTooltip Text="Move down"><MudIconButton Icon="@Icons.Material.Outlined.KeyboardArrowDown" Size="Size.Small" Disabled="@(rule == Items.LastOrDefault())" OnClick="() => Move.InvokeAsync(new RuleMoveRequest(rule, 1))" aria-label="Move rule down"/></MudTooltip>
+                        <MudTooltip Text="Edit"><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => Edit.InvokeAsync(rule)" aria-label="Edit rule"/></MudTooltip>
+                        <MudTooltip Text="Delete"><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="() => Delete.InvokeAsync(rule)" aria-label="Delete rule"/></MudTooltip>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<AutomationRuleItem> Items { get; set; } = [];
+    [Parameter] public EventCallback<AutomationRuleItem> Edit { get; set; }
+    [Parameter] public EventCallback<AutomationRuleItem> Delete { get; set; }
+    [Parameter] public EventCallback<RuleMoveRequest> Move { get; set; }
+    [Parameter] public EventCallback<RuleToggleRequest> Toggle { get; set; }
+
+    private static string Describe(ActionFilter filter)
+    {
+        var parts = new List<string>();
+        if (filter.Types.Length > 0) parts.Add(string.Join(", ", filter.Types));
+        if (filter.States.Length > 0) parts.Add(string.Join(", ", filter.States));
+        if (filter.AssigneeScope != ActionAssigneeScope.Any) parts.Add(filter.AssigneeScope == ActionAssigneeScope.Me ? "me" : "my team");
+        if (filter.Repositories.Length > 0) parts.Add(string.Join(", ", filter.Repositories));
+        if (filter.Organizations.Length > 0) parts.Add(string.Join(", ", filter.Organizations));
+        if (filter.Authors.Length > 0) parts.Add($"author {string.Join(", ", filter.Authors)}");
+        if (filter.WaitingAtLeast is { } waiting) parts.Add($"waiting {waiting.TotalHours:g}h+");
+        if (filter.BotInvolvement != BotInvolvementFilter.Any) parts.Add(filter.BotInvolvement == BotInvolvementFilter.OnlyBots ? "bots involved" : "no bots");
+        return parts.Count == 0 ? "All authorized actions" : string.Join(" · ", parts);
+    }
+
+    private static string EffectLabel(AutomationRuleItem rule) => rule.Effect switch
+    {
+        RuleEffect.AutoArchive => "Auto-archive",
+        RuleEffect.Snooze => $"Snooze {rule.SnoozeDuration?.TotalHours:g}h",
+        RuleEffect.MarkFyi => "Mark FYI",
+        RuleEffect.Pin => "Pin",
+        _ => rule.Effect.ToString()
+    };
+}

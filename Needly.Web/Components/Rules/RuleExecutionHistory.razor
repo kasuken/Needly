@@ -1,0 +1,24 @@
+<section class="rule-history" aria-labelledby="rule-history-title">
+    <div class="section-heading">
+        <div><MudText Typo="Typo.overline">Audit trail</MudText><MudText Typo="Typo.h5" HtmlTag="h2" id="rule-history-title">Recent executions</MudText></div>
+    </div>
+    @if (Items.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="history-empty">No rules have executed yet.</MudText>
+    }
+    else
+    {
+        <div class="history-list">
+            @foreach (var execution in Items)
+            {
+                <div class="history-row" @key="execution.Id">
+                    <MudIcon Icon="@Icons.Material.Outlined.CheckCircleOutline" Color="Color.Success" Size="Size.Small"/>
+                    <div><MudText Typo="Typo.subtitle2">@execution.RuleName · @execution.ActionTitle</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@execution.Explanation</MudText></div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@execution.ExecutedAt.ToString("MMM d, HH:mm 'UTC'")</MudText>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code { [Parameter] public IReadOnlyList<RuleExecutionItem> Items { get; set; } = []; }

@@ -1,9 +1,127 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject SavedViewNavigationState ViewState
 
-@Body
+<MudThemeProvider Theme="NeedlyTheme.Default" @bind-IsDarkMode="_isDarkMode"/>
+<MudPopoverProvider/>
+<MudDialogProvider/>
+<MudSnackbarProvider/>
+
+<MudLayout>
+    <MudAppBar Elevation="0" Class="needly-appbar">
+        <MudIconButton Icon="@Icons.Material.Outlined.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"
+                       OnClick="ToggleDrawer"
+                       aria-label="Toggle navigation"/>
+        <div class="brand-lockup" aria-label="Needly Action Inbox">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <MudText Typo="Typo.h6" Class="brand-name">Needly</MudText>
+        </div>
+        <MudSpacer/>
+        <MudText Typo="Typo.subtitle2" Class="appbar-context">Action Inbox</MudText>
+        <AuthorizeView>
+            <Authorized Context="authenticationState">
+                <MudText Typo="Typo.caption" Class="appbar-user">@authenticationState.User.Identity?.Name</MudText>
+                <form method="post" action="/auth/logout" class="appbar-logout-form">
+                    <AntiforgeryToken/>
+                    <MudTooltip Text="Sign out">
+                        <MudIconButton Icon="@Icons.Material.Outlined.Logout"
+                                       ButtonType="ButtonType.Submit"
+                                       Color="Color.Inherit"
+                                       aria-label="Sign out"/>
+                    </MudTooltip>
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Inherit"
+                           StartIcon="@Icons.Material.Outlined.Login"
+                           Href="/auth/login">
+                    Sign in
+                </MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+        <MudTooltip Text="@(_isDarkMode ? "Use light theme" : "Use dark theme")">
+            <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)"
+                           Color="Color.Inherit"
+                           OnClick="ToggleTheme"
+                           aria-label="@(_isDarkMode ? "Use light theme" : "Use dark theme")"/>
+        </MudTooltip>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen"
+               Variant="DrawerVariant.Responsive"
+               Breakpoint="Breakpoint.Md"
+               ClipMode="DrawerClipMode.Always"
+               Elevation="0"
+               Class="needly-drawer">
+        <div class="drawer-heading">
+            <MudText Typo="Typo.subtitle2">Workspace</MudText>
+        </div>
+        <MudNavMenu Class="needly-nav">
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Inbox">Inbox</MudNavLink>
+            <AuthorizeView>
+                <Authorized>
+                    <MudText Typo="Typo.overline" Class="drawer-section-label">Focus</MudText>
+                    @if (ViewState.IsLoading)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="drawer-progress"/>
+                    }
+                    else if (!ViewState.HasError)
+                    {
+                        @foreach (var view in ViewState.Views)
+                        {
+                            <MudNavLink @key="view.Key"
+                                        Href="@($"/?view={view.Key}")"
+                                        Match="NavLinkMatch.All"
+                                        Icon="@Icons.Material.Outlined.FilterAlt">
+                                <span class="drawer-view-name">@view.Name</span>
+                                <span class="drawer-view-count">@view.OpenCount</span>
+                            </MudNavLink>
+                        }
+                    }
+                </Authorized>
+            </AuthorizeView>
+            <MudNavLink Href="/views" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.ViewList">Views</MudNavLink>
+            <MudNavLink Href="/rules" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Rule">Rules</MudNavLink>
+            <MudNavLink Href="/settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Settings">Settings</MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+
+    <MudMainContent Class="needly-main">
+        <main class="needly-page">
+            @Body
+        </main>
+    </MudMainContent>
+</MudLayout>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+    private bool _drawerOpen = true;
+    private bool _isDarkMode;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ViewState.Changed += OnViewStateChangedAsync;
+        var state = AuthenticationState is null ? null : await AuthenticationState;
+        if (Guid.TryParse(state?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var userId))
+        {
+            await ViewState.InitializeAsync(userId);
+        }
+    }
+
+    public void Dispose() => ViewState.Changed -= OnViewStateChangedAsync;
+
+    private async void OnViewStateChangedAsync() => await InvokeAsync(StateHasChanged);
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private void ToggleTheme() => _isDarkMode = !_isDarkMode;
+}

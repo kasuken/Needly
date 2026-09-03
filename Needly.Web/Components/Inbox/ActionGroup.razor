@@ -1,0 +1,39 @@
+<section class="action-group" aria-labelledby="@HeadingId">
+    <header class="action-group-heading">
+        <MudText Typo="Typo.h5" HtmlTag="h2" id="@HeadingId">@Title</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">@Actions.Count</MudText>
+    </header>
+    <div class="action-group-list">
+        @foreach (var action in Actions)
+        {
+            <ActionRow @key="action.ActionId"
+                       Action="action"
+                       Selected="@(action.ActionId == SelectedActionId)"
+                       OnArchive="OnArchive"
+                       OnSnooze="OnSnooze"
+                       OnMute="OnMute"/>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<VisibleAction> Actions { get; set; } = [];
+
+    [Parameter]
+    public Guid? SelectedActionId { get; set; }
+
+    [Parameter]
+    public EventCallback<VisibleAction> OnArchive { get; set; }
+
+    [Parameter]
+    public EventCallback<ActionSnoozeRequest> OnSnooze { get; set; }
+
+    [Parameter]
+    public EventCallback<VisibleAction> OnMute { get; set; }
+
+    private string HeadingId => $"action-group-{Title.Replace(" ", "-", StringComparison.Ordinal).ToLowerInvariant()}";
+}

@@ -1,0 +1,83 @@
+@page "/rules"
+@attribute [Authorize]
+@inject IAutomationRuleService RuleService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILogger<Rules> Logger
+
+<PageTitle>Rules · Needly</PageTitle>
+
+<MudStack Spacing="4" Class="page-stack">
+    <header class="management-page-header">
+        <div><MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="page-kicker">Automation</MudText><MudText Typo="Typo.h1" HtmlTag="h1">Rules</MudText><MudText Typo="Typo.body1" Color="Color.Secondary" Class="page-description">All enabled matching rules run in order for each action you can see.</MudText></div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="CreateAsync">New rule</MudButton>
+    </header>
+    <MudDivider/>
+    @if (_loading) { <MudProgressLinear Indeterminate="true" Color="Color.Primary"/> }
+    else if (_error) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">Unable to load rules.<MudButton Variant="Variant.Text" OnClick="LoadAsync">Retry</MudButton></MudAlert> }
+    else if (_rules.Count == 0)
+    {
+        <section class="empty-state"><div class="empty-state-icon"><MudIcon Icon="@Icons.Material.Outlined.Rule" Size="Size.Large"/></div><MudText Typo="Typo.h5" HtmlTag="h2">No rules configured</MudText><MudButton Class="empty-state-action" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Add" OnClick="CreateAsync">Create rule</MudButton></section>
+    }
+    else { <RuleList Items="@_rules" Edit="EditAsync" Delete="DeleteAsync" Move="MoveAsync" Toggle="ToggleAsync"/> }
+    @if (!_loading && !_error) { <RuleExecutionHistory Items="@_history"/> }
+</MudStack>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+    private Guid? _userId;
+    private IReadOnlyList<AutomationRuleItem> _rules = [];
+    private IReadOnlyList<RuleExecutionItem> _history = [];
+    private bool _loading = true;
+    private bool _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = AuthenticationState is null ? null : await AuthenticationState;
+        if (Guid.TryParse(state?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var userId)) _userId = userId;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_userId is not { } userId) { _loading = false; _error = true; return; }
+        _loading = true; _error = false;
+        try { _rules = await RuleService.GetAsync(userId, CancellationToken.None); _history = await RuleService.GetHistoryAsync(userId, 50, CancellationToken.None); }
+        catch (System.Data.Common.DbException exception) { HandleLoadFailure(exception, userId); }
+        catch (InvalidDataException exception) { HandleLoadFailure(exception, userId); }
+        catch (InvalidOperationException exception) { HandleLoadFailure(exception, userId); }
+        finally { _loading = false; }
+    }
+
+    private Task CreateAsync() => ShowEditorAsync(null);
+    private Task EditAsync(AutomationRuleItem rule) => ShowEditorAsync(rule);
+    private async Task ShowEditorAsync(AutomationRuleItem? rule)
+    {
+        if (_userId is not { } userId) return;
+        var parameters = new DialogParameters { [nameof(RuleEditorDialog.Rule)] = rule };
+        var dialog = await DialogService.ShowAsync<RuleEditorDialog>(rule is null ? "New rule" : "Edit rule", parameters, new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Medium, CloseButton = true });
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: RuleEditResult edit }) return;
+        try
+        {
+            if (rule is null) await RuleService.CreateAsync(userId, edit.Name, edit.Filter, edit.Effect, edit.SnoozeDuration, CancellationToken.None);
+            else await RuleService.UpdateAsync(userId, rule.Id, edit.Name, edit.Filter, edit.Effect, edit.SnoozeDuration, CancellationToken.None);
+            Snackbar.Add("Rule saved", Severity.Success); await LoadAsync();
+        }
+        catch (InvalidOperationException exception) { Logger.LogWarning(exception, "Could not save rule for {UserId}", userId); Snackbar.Add("A rule with that name already exists.", Severity.Warning); }
+    }
+
+    private async Task ToggleAsync(RuleToggleRequest request) { if (_userId is { } userId) { await RuleService.SetEnabledAsync(userId, request.Rule.Id, request.IsEnabled, CancellationToken.None); await LoadAsync(); } }
+    private async Task MoveAsync(RuleMoveRequest request) { if (_userId is { } userId) { await RuleService.MoveAsync(userId, request.Rule.Id, request.Direction, CancellationToken.None); await LoadAsync(); } }
+    private async Task DeleteAsync(AutomationRuleItem rule)
+    {
+        if (_userId is not { } userId || await DialogService.ShowMessageBoxAsync("Delete rule?", $"Delete '{rule.Name}'? Execution history is retained.", yesText: "Delete", cancelText: "Cancel") != true) return;
+        await RuleService.DeleteAsync(userId, rule.Id, CancellationToken.None); await LoadAsync();
+    }
+
+    private void HandleLoadFailure(Exception exception, Guid userId)
+    {
+        Logger.LogError(exception, "Failed to load rules for {UserId}", userId);
+        _error = true;
+    }
+}

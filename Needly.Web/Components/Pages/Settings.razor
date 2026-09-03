@@ -1,0 +1,280 @@
+@page "/settings"
+@attribute [Authorize]
+@implements IDisposable
+@using System.Data.Common
+@using System.Security.Claims
+@using Microsoft.Extensions.Options
+@using Needly.Infrastructure.GitHub
+@inject IGitHubSettingsService SettingsService
+@inject IOptions<GitHubAppOptions> GitHubOptions
+@inject ILogger<Settings> Logger
+
+<PageTitle>Settings · Needly</PageTitle>
+
+<MudStack Spacing="4" Class="page-stack">
+    <header class="page-header settings-page-header">
+        <div>
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="page-kicker">GitHub connection</MudText>
+            <MudText Typo="Typo.h1" HtmlTag="h1">Settings</MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary" Class="page-description">
+                Installations and repositories that feed your Needly workspace.
+            </MudText>
+        </div>
+        @if (CanInstall)
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Outlined.AddLink"
+                       Href="@InstallUrl"
+                       Target="_blank"
+                       rel="noopener noreferrer">
+                Add installation
+            </MudButton>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(StatusMessage))
+    {
+        <MudAlert Severity="@StatusSeverity" Variant="Variant.Outlined" Dense="true">
+            @StatusMessage
+        </MudAlert>
+    }
+
+    <MudDivider/>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" aria-label="Loading GitHub installations"/>
+    }
+    else if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Error">GitHub settings could not be loaded. Refresh the page to try again.</MudAlert>
+    }
+    else if (_settings?.Installations.Count == 0)
+    {
+        <section class="empty-state" aria-labelledby="settings-empty-title">
+            <div class="empty-state-icon" aria-hidden="true">
+                <MudIcon Icon="@Icons.Material.Outlined.Extension" Size="Size.Large"/>
+            </div>
+            <MudText Typo="Typo.h5" HtmlTag="h2" id="settings-empty-title">No GitHub App installation linked</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="empty-state-copy">
+                Install Needly on a personal account or organization to select repositories.
+            </MudText>
+            @if (CanInstall)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Outlined.OpenInNew"
+                           Href="@InstallUrl"
+                           Target="_blank"
+                           rel="noopener noreferrer"
+                           Class="empty-state-action">
+                    Open GitHub setup
+                </MudButton>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="empty-state-action">
+                    GitHub integration is disabled for this deployment.
+                </MudAlert>
+            }
+        </section>
+    }
+    else if (_settings is not null)
+    {
+        <div class="installation-list">
+            @foreach (var installation in _settings.Installations)
+            {
+                <section class="settings-installation" aria-labelledby="@($"installation-{installation.GitHubInstallationId}")">
+                    <header class="installation-heading">
+                        <div class="installation-identity">
+                            <div class="installation-icon" aria-hidden="true">
+                                <MudIcon Icon="@(installation.AccountType == GitHubAccountType.Organization ? Icons.Material.Outlined.CorporateFare : Icons.Material.Outlined.Person)"/>
+                            </div>
+                            <div>
+                                <MudText Typo="Typo.h5" HtmlTag="h2" id="@($"installation-{installation.GitHubInstallationId}")">
+                                    @installation.AccountLogin
+                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @AccountTypeLabel(installation.AccountType) · Installation @installation.GitHubInstallationId
+                                </MudText>
+                            </div>
+                        </div>
+                        <div class="installation-actions">
+                            <MudChip T="string"
+                                     Size="Size.Small"
+                                     Variant="Variant.Outlined"
+                                     Color="@StateColor(installation.State)">
+                                @StateLabel(installation.State)
+                            </MudChip>
+                            <MudTooltip Text="Configure installation on GitHub">
+                                <MudIconButton Icon="@Icons.Material.Outlined.OpenInNew"
+                                               Href="@ConfigureUrl(installation)"
+                                               Target="_blank"
+                                               rel="noopener noreferrer"
+                                               aria-label="Configure installation on GitHub"/>
+                            </MudTooltip>
+                        </div>
+                    </header>
+
+                    @if (installation.State != InstallationState.Active)
+                    {
+                        <MudAlert Severity="@(installation.State == InstallationState.Suspended ? Severity.Warning : Severity.Error)"
+                                  Variant="Variant.Text"
+                                  Dense="true"
+                                  Class="installation-state-alert">
+                            @(installation.State == InstallationState.Suspended
+                                ? "GitHub suspended this installation. API access is paused."
+                                : "This installation was removed from GitHub. API access is disabled.")
+                        </MudAlert>
+                    }
+
+                    <div class="repository-heading">
+                        <MudText Typo="Typo.subtitle2">Selected repositories</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @installation.Repositories.Count @(installation.Repositories.Count == 1 ? "repository" : "repositories")
+                        </MudText>
+                    </div>
+
+                    @if (installation.Repositories.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="repository-empty">
+                            No selected repositories are currently recorded.
+                        </MudText>
+                    }
+                    else
+                    {
+                        <div class="repository-table-wrap">
+                            <table class="repository-table">
+                                <thead>
+                                <tr>
+                                    <th scope="col">Repository</th>
+                                    <th scope="col">GitHub ID</th>
+                                    <th scope="col"><span class="visually-hidden">Open</span></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var repository in installation.Repositories)
+                                {
+                                    <tr>
+                                        <td><span class="repository-owner">@repository.Owner/</span><strong>@repository.Name</strong></td>
+                                        <td class="repository-id">@repository.GitHubRepositoryId</td>
+                                        <td class="repository-link-cell">
+                                            <MudTooltip Text="Open repository on GitHub">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.NorthEast"
+                                                               Size="Size.Small"
+                                                               Href="@RepositoryUrl(repository)"
+                                                               Target="_blank"
+                                                               rel="noopener noreferrer"
+                                                               aria-label="Open repository on GitHub"/>
+                                            </MudTooltip>
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+            }
+        </div>
+    }
+</MudStack>
+
+@code {
+    private readonly CancellationTokenSource _disposeCancellation = new();
+    private GitHubSettings? _settings;
+    private bool _loading = true;
+    private bool _loadFailed;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    [SupplyParameterFromQuery(Name = "status")]
+    public string? Status { get; set; }
+
+    private bool CanInstall =>
+        GitHubOptions.Value.Enabled && !string.IsNullOrWhiteSpace(GitHubOptions.Value.AppSlug);
+
+    private string InstallUrl => $"https://github.com/apps/{GitHubOptions.Value.AppSlug}/installations/new";
+
+    private string? StatusMessage => Status switch
+    {
+        "installed" => "GitHub installation linked. Repository inventory will appear after webhook delivery.",
+        "updated" => "GitHub installation settings updated.",
+        "connected" => "GitHub installation linked.",
+        "missing-installation" => "GitHub returned without an installation identifier.",
+        _ => null
+    };
+
+    private Severity StatusSeverity =>
+        Status == "missing-installation" ? Severity.Warning : Severity.Success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authenticationState = AuthenticationState is null ? null : await AuthenticationState;
+            var userIdValue = authenticationState?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdValue, out var needlyUserId))
+            {
+                _loadFailed = true;
+                return;
+            }
+
+            _settings = await SettingsService.GetAsync(needlyUserId, _disposeCancellation.Token);
+        }
+        catch (OperationCanceledException) when (_disposeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (DbException exception)
+        {
+            HandleLoadFailure(exception);
+        }
+        catch (InvalidOperationException exception)
+        {
+            HandleLoadFailure(exception);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposeCancellation.Cancel();
+        _disposeCancellation.Dispose();
+    }
+
+    private void HandleLoadFailure(Exception exception)
+    {
+        _loadFailed = true;
+        Logger.LogError(exception, "Failed to load GitHub installation settings");
+    }
+
+    private static string AccountTypeLabel(GitHubAccountType accountType) =>
+        accountType == GitHubAccountType.Organization ? "Organization" : "Personal account";
+
+    private static string StateLabel(InstallationState state) => state switch
+    {
+        InstallationState.Active => "Active",
+        InstallationState.Suspended => "Suspended",
+        _ => "Removed"
+    };
+
+    private static Color StateColor(InstallationState state) => state switch
+    {
+        InstallationState.Active => Color.Success,
+        InstallationState.Suspended => Color.Warning,
+        _ => Color.Error
+    };
+
+    private static string ConfigureUrl(InstallationSettingsItem installation) =>
+        installation.AccountType == GitHubAccountType.Organization
+            ? $"https://github.com/organizations/{Uri.EscapeDataString(installation.AccountLogin)}/settings/installations/{installation.GitHubInstallationId}"
+            : $"https://github.com/settings/installations/{installation.GitHubInstallationId}";
+
+    private static string RepositoryUrl(RepositorySettingsItem repository) =>
+        $"https://github.com/{Uri.EscapeDataString(repository.Owner)}/{Uri.EscapeDataString(repository.Name)}";
+}

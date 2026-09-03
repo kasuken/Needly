@@ -1,0 +1,88 @@
+<div class="action-filter-editor">
+    <MudSelect T="ActionType?" Label="Type" Dense="true" Clearable="true"
+               Value="@_type" ValueChanged="SetTypeAsync">
+        @foreach (var type in Enum.GetValues<ActionType>())
+        {
+            <MudSelectItem T="ActionType?" Value="@type">@Format(type)</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="ActionState?" Label="State" Dense="true" Clearable="true"
+               Value="@_state" ValueChanged="SetStateAsync">
+        @foreach (var state in Enum.GetValues<ActionState>())
+        {
+            <MudSelectItem T="ActionState?" Value="@state">@Format(state)</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="ActionAssigneeScope" Label="Assignee" Dense="true"
+               Value="@_scope" ValueChanged="SetScopeAsync">
+        <MudSelectItem Value="ActionAssigneeScope.Any">Anyone visible</MudSelectItem>
+        <MudSelectItem Value="ActionAssigneeScope.Me">Me</MudSelectItem>
+        <MudSelectItem Value="ActionAssigneeScope.MyTeam">My team</MudSelectItem>
+    </MudSelect>
+    <MudSelect T="BotInvolvementFilter" Label="Bots" Dense="true"
+               Value="@_bots" ValueChanged="SetBotsAsync">
+        <MudSelectItem Value="BotInvolvementFilter.Any">Any</MudSelectItem>
+        <MudSelectItem Value="BotInvolvementFilter.OnlyBots">Involved</MudSelectItem>
+        <MudSelectItem Value="BotInvolvementFilter.ExcludeBots">Excluded</MudSelectItem>
+    </MudSelect>
+        <MudTextField T="string" Label="Repository" Placeholder="owner/name" Immediate="true"
+                  Value="@_repository" ValueChanged="SetRepositoryAsync"/>
+        <MudTextField T="string" Label="Organization" Placeholder="owner" Immediate="true"
+                  Value="@_organization" ValueChanged="SetOrganizationAsync"/>
+        <MudTextField T="string" Label="Author" Placeholder="login" Immediate="true"
+                  Value="@_author" ValueChanged="SetAuthorAsync"/>
+    <MudNumericField T="double?" Label="Waiting hours" Min="0.1"
+                     Value="@_waitingHours" ValueChanged="SetWaitingAsync"/>
+</div>
+
+@code {
+    [Parameter] public ActionFilter Value { get; set; } = new();
+    [Parameter] public EventCallback<ActionFilter> ValueChanged { get; set; }
+
+    private ActionType? _type;
+    private ActionState? _state;
+    private ActionAssigneeScope _scope;
+    private BotInvolvementFilter _bots;
+    private string? _repository;
+    private string? _organization;
+    private string? _author;
+    private double? _waitingHours;
+
+    protected override void OnParametersSet()
+    {
+        _type = Value.Types.FirstOrDefault() is var type && Value.Types.Length > 0 ? type : null;
+        _state = Value.States.FirstOrDefault() is var state && Value.States.Length > 0 ? state : null;
+        _scope = Value.AssigneeScope;
+        _bots = Value.BotInvolvement;
+        _repository = Value.Repositories.FirstOrDefault();
+        _organization = Value.Organizations.FirstOrDefault();
+        _author = Value.Authors.FirstOrDefault();
+        _waitingHours = Value.WaitingAtLeast?.TotalHours;
+    }
+
+    private Task SetTypeAsync(ActionType? value) { _type = value; return NotifyAsync(); }
+    private Task SetStateAsync(ActionState? value) { _state = value; return NotifyAsync(); }
+    private Task SetScopeAsync(ActionAssigneeScope value) { _scope = value; return NotifyAsync(); }
+    private Task SetBotsAsync(BotInvolvementFilter value) { _bots = value; return NotifyAsync(); }
+    private Task SetRepositoryAsync(string value) { _repository = value; return NotifyAsync(); }
+    private Task SetOrganizationAsync(string value) { _organization = value; return NotifyAsync(); }
+    private Task SetAuthorAsync(string value) { _author = value; return NotifyAsync(); }
+    private Task SetWaitingAsync(double? value) { _waitingHours = value; return NotifyAsync(); }
+
+    private Task NotifyAsync() => ValueChanged.InvokeAsync(new ActionFilter
+    {
+        Types = _type is { } type ? [type] : [],
+        States = _state is { } state ? [state] : [],
+        Repositories = Values(_repository),
+        Organizations = Values(_organization),
+        Authors = Values(_author),
+        AssigneeScope = _scope,
+        WaitingAtLeast = _waitingHours > 0 ? TimeSpan.FromHours(_waitingHours.Value) : null,
+        BotInvolvement = _bots
+    });
+
+    private static string[] Values(string? value) => string.IsNullOrWhiteSpace(value) ? [] : [value.Trim()];
+
+    private static string Format<T>(T value) where T : Enum =>
+        System.Text.RegularExpressions.Regex.Replace(value.ToString(), "([a-z])([A-Z])", "$1 $2");
+}

@@ -1,0 +1,40 @@
+{
+  "name": "Needly",
+  "url": "https://needly.example.invalid",
+  "hook_attributes": {
+    "url": "https://needly.example.invalid/webhooks/github",
+    "active": true
+  },
+  "redirect_url": "https://needly.example.invalid/github/setup",
+  "callback_urls": [
+    "https://needly.example.invalid/auth/github/callback"
+  ],
+  "setup_url": "https://needly.example.invalid/github/setup",
+  "setup_on_update": true,
+  "public": false,
+  "default_permissions": {
+    "actions": "read",
+    "checks": "read",
+    "contents": "read",
+    "email_addresses": "read",
+    "issues": "read",
+    "members": "read",
+    "metadata": "read",
+    "pull_requests": "read"
+  },
+  "default_events": [
+    "check_run",
+    "check_suite",
+    "installation",
+    "installation_repositories",
+    "issue_comment",
+    "issues",
+    "member",
+    "membership",
+    "pull_request",
+    "pull_request_review",
+    "pull_request_review_comment",
+    "team",
+    "workflow_run"
+  ]
+}
