@@ -38,18 +38,24 @@ public sealed class GitHubSettingsService(NeedlyDbContext dbContext) : IGitHubSe
             .ConfigureAwait(false);
 
         var items = installations.Select(installation =>
-            new InstallationSettingsItem(
+        {
+            var installationRepositories = repositories
+                .Where(repository => repository.InstallationId == installation.Id)
+                .ToArray();
+            return new InstallationSettingsItem(
                 installation.GitHubInstallationId,
                 installation.AccountLogin,
                 installation.AccountType,
                 installation.State,
-                repositories
-                    .Where(repository => repository.InstallationId == installation.Id)
+                installationRepositories
                     .Select(repository => new RepositorySettingsItem(
                         repository.GitHubRepositoryId,
                         repository.Owner,
                         repository.Name))
-                    .ToArray()))
+                    .ToArray(),
+                installationRepositories.Count(repository =>
+                    repository.HistoricalBootstrapCompletedAt is not null));
+        })
             .ToArray();
         return new GitHubSettings(items);
     }

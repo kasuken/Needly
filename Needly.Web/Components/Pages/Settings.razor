@@ -7,6 +7,7 @@
 @using Needly.Infrastructure.GitHub
 @inject IGitHubSettingsService SettingsService
 @inject IOptions<GitHubAppOptions> GitHubOptions
+@inject IOptions<GitHubHistoricalBootstrapOptions> HistoricalBootstrapOptions
 @inject ILogger<Settings> Logger
 
 <PageTitle>Settings · Needly</PageTitle>
@@ -128,6 +129,25 @@
                                 : "This installation was removed from GitHub. API access is disabled.")
                         </MudAlert>
                     }
+                    else if (IsHistoricalImportInProgress(installation))
+                    {
+                        <MudAlert Severity="Severity.Info"
+                                  Variant="Variant.Outlined"
+                                  Icon="@Icons.Material.Outlined.Sync"
+                                  Class="installation-import-alert">
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.subtitle2">Importing historical GitHub activity</MudText>
+                                <MudText Typo="Typo.body2">
+                                    Needly has checked @installation.HistoricalImportCompletedRepositories of @installation.Repositories.Count repositories.
+                                    This can take several minutes for large installations; new actions appear as they are found.
+                                </MudText>
+                                <MudProgressLinear Value="@HistoricalImportProgress(installation)"
+                                                   Color="Color.Info"
+                                                   Rounded="true"
+                                                   aria-label="Historical import progress"/>
+                            </MudStack>
+                        </MudAlert>
+                    }
 
                     <div class="repository-heading">
                         <MudText Typo="Typo.subtitle2">Selected repositories</MudText>
@@ -200,7 +220,7 @@
 
     private string? StatusMessage => Status switch
     {
-        "installed" => "GitHub installation linked. Repository inventory will appear after webhook delivery.",
+        "installed" => "GitHub installation linked. Repository inventory and historical activity will import in the background. Large installations can take several minutes.",
         "updated" => "GitHub installation settings updated.",
         "connected" => "GitHub installation linked.",
         "missing-installation" => "GitHub returned without an installation identifier.",
@@ -269,6 +289,14 @@
         InstallationState.Suspended => Color.Warning,
         _ => Color.Error
     };
+
+    private bool IsHistoricalImportInProgress(InstallationSettingsItem installation) =>
+        HistoricalBootstrapOptions.Value.Enabled &&
+        installation.Repositories.Count > 0 &&
+        installation.HistoricalImportCompletedRepositories < installation.Repositories.Count;
+
+    private static double HistoricalImportProgress(InstallationSettingsItem installation) =>
+        100d * installation.HistoricalImportCompletedRepositories / installation.Repositories.Count;
 
     private static string ConfigureUrl(InstallationSettingsItem installation) =>
         installation.AccountType == GitHubAccountType.Organization

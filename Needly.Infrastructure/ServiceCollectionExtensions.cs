@@ -6,6 +6,8 @@ using Needly.Application.Actions;
 using Needly.Application.GitHub;
 using Needly.Infrastructure.Actions;
 using Needly.Infrastructure.GitHub;
+using Needly.Application.Users;
+using Needly.Infrastructure.Users;
 
 namespace Needly.Infrastructure;
 
@@ -51,6 +53,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<GitHubInstallationTokenCache>();
         services.AddSingleton<IGitHubWebhookQueue, GitHubWebhookQueue>();
         services.AddScoped<IGitHubIdentityService, GitHubIdentityService>();
+        services.AddScoped<IUserOnboardingService, UserOnboardingService>();
         services.AddScoped<IInstallationInventoryService, InstallationInventoryService>();
         services.AddScoped<IGitHubOrganizationMembershipService, GitHubOrganizationMembershipService>();
         services.AddScoped<ITeamReviewResolver, TeamReviewResolver>();

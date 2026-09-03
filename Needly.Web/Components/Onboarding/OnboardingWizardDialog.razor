@@ -1,0 +1,128 @@
+<MudDialog Class="onboarding-dialog">
+    <DialogContent>
+        <MudStepper NonLinear="false"
+                    ShowResetButton="false"
+                    CompletedStepColor="Color.Success"
+                    CurrentStepColor="Color.Primary"
+                    Class="onboarding-stepper">
+                    <ChildContent>
+            <MudStep Title="How it works">
+                <OnboardingStepPanel Icon="@Icons.Material.Outlined.Bolt"
+                                     Eyebrow="Action inbox"
+                                     Title="Turn GitHub activity into clear decisions"
+                                     Description="Needly listens to your GitHub App, evaluates current work, and creates focused actions instead of copying every notification.">
+                    <div class="onboarding-points">
+                        <div class="onboarding-point">
+                            <MudIcon Icon="@Icons.Material.Outlined.RateReview"/>
+                            <div><strong>Know the next move</strong><span>Review, respond, fix, resolve, merge, or follow up.</span></div>
+                        </div>
+                        <div class="onboarding-point">
+                            <MudIcon Icon="@Icons.Material.Outlined.Update"/>
+                            <div><strong>Stay current</strong><span>New webhooks update actions while historical activity imports in the background.</span></div>
+                        </div>
+                    </div>
+                </OnboardingStepPanel>
+            </MudStep>
+
+            <MudStep Title="Connect GitHub">
+                <OnboardingStepPanel Icon="@Icons.Material.Outlined.Extension"
+                                     Eyebrow="Setup"
+                                     Title="Choose the repositories that feed Needly"
+                                     Description="Open Settings, install the GitHub App for a personal account or organization, and select the repositories you want Needly to watch.">
+                    <div class="onboarding-sequence" aria-label="GitHub setup sequence">
+                        <span><b>1</b> Install the app</span>
+                        <span><b>2</b> Select repositories</span>
+                        <span><b>3</b> Let history import</span>
+                    </div>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Dense="true">
+                        Large installations can take several minutes. Settings shows repository-level import progress, and actions appear as they are found.
+                    </MudAlert>
+                </OnboardingStepPanel>
+            </MudStep>
+
+            <MudStep Title="Find your focus">
+                <OnboardingStepPanel Icon="@Icons.Material.Outlined.FilterAlt"
+                                     Eyebrow="Focus"
+                                     Title="Use the four built-in perspectives"
+                                     Description="The navigation keeps urgent attention separate from team work, follow-ups, and read-only context.">
+                    <div class="onboarding-focus-grid">
+                        <div><MudIcon Icon="@Icons.Material.Outlined.Person"/><strong>Needs me</strong><span>Directly assigned attention.</span></div>
+                        <div><MudIcon Icon="@Icons.Material.Outlined.Groups"/><strong>Needs my team</strong><span>Attention assigned to one of your teams.</span></div>
+                        <div><MudIcon Icon="@Icons.Material.Outlined.HourglassTop"/><strong>Waiting on others</strong><span>Follow-up or monitored work waiting at least one day.</span></div>
+                        <div><MudIcon Icon="@Icons.Material.Outlined.Visibility"/><strong>FYI</strong><span>Monitored or read-only work that needs awareness.</span></div>
+                    </div>
+                </OnboardingStepPanel>
+            </MudStep>
+
+            <MudStep Title="Shape your workflow">
+                <OnboardingStepPanel Icon="@Icons.Material.Outlined.Tune"
+                                     Eyebrow="Organize"
+                                     Title="Save focus and automate routine choices"
+                                     Description="Views preserve useful filters. Rules apply ordered effects as actions arrive, while each action still gives you direct lifecycle controls.">
+                    <div class="onboarding-points">
+                        <div class="onboarding-point">
+                            <MudIcon Icon="@Icons.Material.Outlined.ViewList"/>
+                            <div><strong>Views</strong><span>Save repository, author, type, assignee, bot, and waiting-time filters.</span></div>
+                        </div>
+                        <div class="onboarding-point">
+                            <MudIcon Icon="@Icons.Material.Outlined.Rule"/>
+                            <div><strong>Rules</strong><span>Automatically pin, archive, mute, snooze, or mark matching actions as FYI.</span></div>
+                        </div>
+                        <div class="onboarding-point">
+                            <MudIcon Icon="@Icons.Material.Outlined.MoreHoriz"/>
+                            <div><strong>Action options</strong><span>Snooze temporary work, archive finished attention, or mute a subject and its future activity.</span></div>
+                        </div>
+                    </div>
+                </OnboardingStepPanel>
+            </MudStep>
+
+            <MudStep Title="Ready">
+                <OnboardingStepPanel Icon="@Icons.Material.Outlined.RocketLaunch"
+                                     Eyebrow="Next step"
+                                     Title="Start with your GitHub connection"
+                                     Description="Complete this guide, then open Settings to install or review the GitHub App. You can return to the Inbox whenever you want to work through actions.">
+                    <MudAlert Severity="Severity.Success" Variant="Variant.Outlined">
+                        Once connected, Needly receives new activity immediately and imports existing actionable work in the background.
+                    </MudAlert>
+                </OnboardingStepPanel>
+            </MudStep>
+            </ChildContent>
+
+            <CompletedContent>
+                <div class="onboarding-complete">
+                    <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Color="Color.Success" Size="Size.Large"/>
+                    <MudText Typo="Typo.h5" HtmlTag="h3">Your workspace is ready</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Connect repositories in Settings, or head to the Inbox if your GitHub App is already installed.
+                    </MudText>
+                    <div class="onboarding-complete-actions">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => Finish(OnboardingDestination.Inbox))">
+                            Go to Inbox
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Outlined.Settings"
+                                   OnClick="@(() => Finish(OnboardingDestination.Settings))">
+                            Open Settings
+                        </MudButton>
+                    </div>
+                </div>
+            </CompletedContent>
+        </MudStepper>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="Skip">
+            Skip introduction
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? Dialog { get; set; }
+
+    private void Finish(OnboardingDestination destination) =>
+        Dialog?.Close(DialogResult.Ok(destination));
+
+    private void Skip() => Finish(OnboardingDestination.Inbox);
+}

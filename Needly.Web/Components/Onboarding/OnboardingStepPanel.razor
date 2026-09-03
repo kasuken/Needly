@@ -1,0 +1,30 @@
+<section class="onboarding-step-panel">
+    <div class="onboarding-step-icon" aria-hidden="true">
+        <MudIcon Icon="@Icon" Size="Size.Large"/>
+    </div>
+    <div class="onboarding-step-copy">
+        <MudText Typo="Typo.overline" Color="Color.Primary">@Eyebrow</MudText>
+        <MudText Typo="Typo.h5" HtmlTag="h3">@Title</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="onboarding-step-description">
+            @Description
+        </MudText>
+        @ChildContent
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Icon { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Eyebrow { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Description { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

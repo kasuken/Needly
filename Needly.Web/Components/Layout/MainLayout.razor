@@ -1,6 +1,12 @@
 ﻿@inherits LayoutComponentBase
 @implements IDisposable
+@using System.Data.Common
+@using Needly.Application.Users
 @inject SavedViewNavigationState ViewState
+@inject IUserOnboardingService OnboardingService
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+@inject ILogger<MainLayout> Logger
 
 <MudThemeProvider Theme="NeedlyTheme.Default" @bind-IsDarkMode="_isDarkMode"/>
 <MudPopoverProvider/>
@@ -104,8 +110,11 @@
 
 @code {
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+    private Guid? _needlyUserId;
     private bool _drawerOpen = true;
     private bool _isDarkMode;
+    private bool _showOnboarding;
+    private bool _onboardingOpened;
 
     protected override async Task OnInitializedAsync()
     {
@@ -113,7 +122,60 @@
         var state = AuthenticationState is null ? null : await AuthenticationState;
         if (Guid.TryParse(state?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var userId))
         {
+            _needlyUserId = userId;
             await ViewState.InitializeAsync(userId);
+            try
+            {
+                _showOnboarding = !await OnboardingService.IsCompletedAsync(userId, CancellationToken.None);
+            }
+            catch (DbException exception)
+            {
+                Logger.LogError(exception, "Failed to load onboarding state for user {NeedlyUserId}", userId);
+            }
+            catch (InvalidOperationException exception)
+            {
+                Logger.LogError(exception, "Failed to load onboarding state for user {NeedlyUserId}", userId);
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !_showOnboarding || _onboardingOpened || _needlyUserId is not { } userId)
+        {
+            return;
+        }
+
+        _onboardingOpened = true;
+        var dialog = await DialogService.ShowAsync<OnboardingWizardDialog>(
+            "Welcome to Needly",
+            new DialogOptions
+            {
+                BackdropClick = false,
+                CloseButton = false,
+                CloseOnEscapeKey = false,
+                FullWidth = true,
+                MaxWidth = MaxWidth.Medium
+            });
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: OnboardingDestination destination })
+        {
+            return;
+        }
+
+        try
+        {
+            await OnboardingService.CompleteAsync(userId, CancellationToken.None);
+            _showOnboarding = false;
+            Navigation.NavigateTo(destination == OnboardingDestination.Settings ? "/settings" : "/");
+        }
+        catch (DbException exception)
+        {
+            Logger.LogError(exception, "Failed to complete onboarding for user {NeedlyUserId}", userId);
+        }
+        catch (InvalidOperationException exception)
+        {
+            Logger.LogError(exception, "Failed to complete onboarding for user {NeedlyUserId}", userId);
         }
     }
 

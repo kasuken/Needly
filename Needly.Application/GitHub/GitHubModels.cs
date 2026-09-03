@@ -93,12 +93,14 @@ public sealed record RepositorySettingsItem(long GitHubRepositoryId, string Owne
 /// <param name="AccountType">The owning account type.</param>
 /// <param name="State">The installation state.</param>
 /// <param name="Repositories">The selected repositories.</param>
+/// <param name="HistoricalImportCompletedRepositories">The repositories whose historical import completed.</param>
 public sealed record InstallationSettingsItem(
     long GitHubInstallationId,
     string AccountLogin,
     GitHubAccountType AccountType,
     InstallationState State,
-    IReadOnlyList<RepositorySettingsItem> Repositories);
+    IReadOnlyList<RepositorySettingsItem> Repositories,
+    int HistoricalImportCompletedRepositories);
 
 /// <summary>Contains the authenticated user's GitHub App installation settings.</summary>
 /// <param name="Installations">The installations linked to the user.</param>

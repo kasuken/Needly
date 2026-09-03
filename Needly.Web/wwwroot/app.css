@@ -211,6 +211,7 @@ h1:focus {
     }
 
     .settings-installation {
+        min-width: 0;
         border-top: 3px solid var(--mud-palette-primary);
         border-bottom: 1px solid var(--mud-palette-divider);
         background: color-mix(in srgb, var(--mud-palette-surface) 82%, transparent);
@@ -253,7 +254,8 @@ h1:focus {
         gap: 0.5rem;
     }
 
-    .installation-state-alert {
+    .installation-state-alert,
+    .installation-import-alert {
         margin: 0 1.5rem 1rem;
     }
 
@@ -297,6 +299,133 @@ h1:focus {
 
     .repository-table tbody tr:hover {
         background: color-mix(in srgb, var(--mud-palette-primary) 4%, transparent);
+    }
+
+    .onboarding-dialog .mud-dialog-content {
+        padding: 0;
+    }
+
+    .onboarding-stepper {
+        min-height: 31rem;
+    }
+
+    .onboarding-step-panel {
+        display: grid;
+        min-height: 19rem;
+        grid-template-columns: 4rem minmax(0, 1fr);
+        gap: 1.5rem;
+        padding: 1.5rem 1.25rem 1rem;
+    }
+
+    .onboarding-step-icon {
+        display: grid;
+        width: 4rem;
+        height: 4rem;
+        place-items: center;
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 6px;
+        color: var(--mud-palette-primary);
+        background: color-mix(in srgb, var(--mud-palette-primary) 8%, var(--mud-palette-surface));
+    }
+
+    .onboarding-step-copy {
+        min-width: 0;
+    }
+
+    .onboarding-step-description {
+        max-width: 38rem;
+        margin-top: 0.5rem;
+    }
+
+    .onboarding-points {
+        display: grid;
+        gap: 0.9rem;
+        margin-top: 1.5rem;
+    }
+
+    .onboarding-point {
+        display: grid;
+        grid-template-columns: 1.75rem minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: start;
+    }
+
+    .onboarding-point .mud-icon-root,
+    .onboarding-focus-grid .mud-icon-root {
+        color: var(--mud-palette-primary);
+    }
+
+    .onboarding-point div,
+    .onboarding-focus-grid div {
+        display: grid;
+        gap: 0.15rem;
+    }
+
+    .onboarding-point span,
+    .onboarding-focus-grid span {
+        color: var(--mud-palette-text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .onboarding-sequence {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.25rem;
+        margin: 1.5rem 0 1rem;
+        color: var(--mud-palette-text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .onboarding-sequence span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .onboarding-sequence b {
+        display: grid;
+        width: 1.5rem;
+        height: 1.5rem;
+        place-items: center;
+        border-radius: 50%;
+        color: var(--mud-palette-primary-text);
+        background: var(--mud-palette-primary);
+        font-size: 0.75rem;
+    }
+
+    .onboarding-focus-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .onboarding-focus-grid div {
+        grid-template-columns: 1.5rem minmax(0, 1fr);
+        padding-left: 0.75rem;
+        border-left: 2px solid color-mix(in srgb, var(--mud-palette-primary) 35%, transparent);
+    }
+
+    .onboarding-focus-grid span {
+        grid-column: 2;
+    }
+
+    .onboarding-complete {
+        display: grid;
+        min-height: 23rem;
+        place-items: center;
+        align-content: center;
+        gap: 0.75rem;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .onboarding-complete-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
     }
 
     .repository-owner,
@@ -400,6 +529,26 @@ h1:focus {
         .repository-table th:nth-child(2),
         .repository-table td:nth-child(2) {
             display: none;
+        }
+
+        .onboarding-step-panel {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            padding: 1.25rem 0.5rem 0.75rem;
+        }
+
+        .onboarding-step-icon {
+            width: 3.25rem;
+            height: 3.25rem;
+        }
+
+        .onboarding-focus-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .onboarding-complete-actions,
+        .onboarding-complete-actions .mud-button-root {
+            width: 100%;
         }
     }
 

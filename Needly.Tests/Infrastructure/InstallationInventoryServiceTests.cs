@@ -281,6 +281,41 @@ public sealed class InstallationInventoryServiceTests
     }
 
     [Fact]
+    public async Task GitHubSettingsService_PartialHistoricalImport_ReportsCompletedRepositoryCount()
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var identityService = new GitHubIdentityService(
+            database.Context,
+            new FixedTimeProvider(TestData.CreatedAt),
+            NullLogger<GitHubIdentityService>.Instance);
+        var user = await identityService.UpsertAsync(
+            new GitHubIdentityProfile(9001, "octocat", "octocat@example.test", null, null),
+            CancellationToken.None);
+        var inventoryService = CreateService(database.Context);
+        await inventoryService.LinkUserAsync(
+            user.NeedlyUserId,
+            501,
+            TestData.CreatedAt,
+            CancellationToken.None);
+        await inventoryService.HandleInstallationAsync(
+            CreateInstallationEvent("created", [CreateRepository(701), CreateRepository(702)]),
+            TestData.CreatedAt.AddMinutes(1),
+            CancellationToken.None);
+        var importedRepository = await database.Context.Repositories
+            .SingleAsync(repository => repository.GitHubRepositoryId == 701);
+        importedRepository.TryStartHistoricalBootstrap(
+            TestData.CreatedAt.AddMinutes(2),
+            TestData.CreatedAt.AddMinutes(2));
+        importedRepository.CompleteHistoricalBootstrap(TestData.CreatedAt.AddMinutes(3));
+        await database.Context.SaveChangesAsync();
+
+        var settings = await new GitHubSettingsService(database.Context)
+            .GetAsync(user.NeedlyUserId, CancellationToken.None);
+
+        Assert.Equal(1, Assert.Single(settings.Installations).HistoricalImportCompletedRepositories);
+    }
+
+    [Fact]
     public async Task LinkUserAsync_PersonalInstallationAlreadyExists_CreatesActiveInstallationMembership()
     {
         await using var database = await InventoryTestDatabase.CreateAsync();

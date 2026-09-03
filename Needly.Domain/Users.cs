@@ -104,6 +104,9 @@ public sealed class NeedlyUser
     /// <summary>Gets when the Needly account was last updated.</summary>
     public DateTimeOffset UpdatedAt { get; private set; }
 
+    /// <summary>Gets when the user completed or skipped first-run onboarding.</summary>
+    public DateTimeOffset? OnboardingCompletedAt { get; private set; }
+
     /// <summary>
     /// Creates a Needly user.
     /// </summary>
@@ -143,5 +146,19 @@ public sealed class NeedlyUser
         Email = DomainGuard.Required(email, 320, nameof(email));
         DisplayName = DomainGuard.Required(displayName, 200, nameof(displayName));
         UpdatedAt = DomainGuard.NotBefore(updatedAt, CreatedAt, nameof(updatedAt));
+    }
+
+    /// <summary>Marks first-run onboarding complete.</summary>
+    /// <param name="completedAt">The explicit completion timestamp.</param>
+    public void CompleteOnboarding(DateTimeOffset completedAt)
+    {
+        if (OnboardingCompletedAt is not null)
+        {
+            return;
+        }
+
+        var timestamp = DomainGuard.NotBefore(completedAt, CreatedAt, nameof(completedAt));
+        OnboardingCompletedAt = timestamp;
+        UpdatedAt = timestamp;
     }
 }
