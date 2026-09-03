@@ -1,15 +1,15 @@
 {
   "name": "Needly",
-  "url": "https://needly.example.invalid",
+  "url": "https://needly.today/",
   "hook_attributes": {
-    "url": "https://needly.example.invalid/webhooks/github",
+    "url": "https://needly.today/webhooks/github",
     "active": true
   },
-  "redirect_url": "https://needly.example.invalid/github/setup",
+  "redirect_url": "https://needly.today/github/setup",
   "callback_urls": [
-    "https://needly.example.invalid/auth/github/callback"
+    "https://needly.today/auth/github/callback"
   ],
-  "setup_url": "https://needly.example.invalid/github/setup",
+  "setup_url": "https://needly.today/github/setup",
   "setup_on_update": true,
   "public": false,
   "default_permissions": {
