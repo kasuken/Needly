@@ -183,6 +183,32 @@ public sealed class AutomationRuleTests
     }
 
     [Fact]
+    public async Task GetHistoryAsync_OrdersNewestFirstLimitsResultsAndIsolatesUsersOnSqlite()
+    {
+        await using var database = await RuleTestDatabase.CreateAsync();
+        var seed = await SeedAsync(database);
+        await using (var context = database.CreateContext())
+        {
+            var action = await context.Actions.SingleAsync();
+            var otherGitHubUser = TestData.CreateGitHubUser(Guid.NewGuid(), 202);
+            var otherUser = NeedlyUser.Create(
+                Guid.NewGuid(), otherGitHubUser.Id, "other@example.test", "Other", TestData.CreatedAt);
+            context.AddRange(otherGitHubUser, otherUser);
+            context.RuleExecutions.AddRange(
+                CreateExecution(seed.User.Id, action.Id, "Middle", TestData.CreatedAt.AddMinutes(2)),
+                CreateExecution(seed.User.Id, action.Id, "Oldest", TestData.CreatedAt.AddMinutes(1)),
+                CreateExecution(seed.User.Id, action.Id, "Newest", TestData.CreatedAt.AddMinutes(3)),
+                CreateExecution(otherUser.Id, action.Id, "Other user", TestData.CreatedAt.AddMinutes(4)));
+            await context.SaveChangesAsync();
+        }
+
+        var history = await CreateService(database).GetHistoryAsync(
+            seed.User.Id, 2, CancellationToken.None);
+
+        Assert.Equal(["Newest", "Middle"], history.Select(item => item.RuleName).ToArray());
+    }
+
+    [Fact]
     public async Task HandleAsync_CreateAndUpdate_InvokesRulesInsideTransactionAndDoesNotRepeatEvent()
     {
         await using var database = await RuleTestDatabase.CreateAsync();
@@ -300,6 +326,23 @@ public sealed class AutomationRuleTests
 
     private static GitHubStoredEvent Event(Guid id, DateTimeOffset receivedAt) =>
         new(id, 501, 101, "pull_request", "opened", "{}", receivedAt);
+
+    private static RuleExecution CreateExecution(
+        Guid needlyUserId,
+        Guid actionId,
+        string ruleName,
+        DateTimeOffset executedAt) =>
+        RuleExecution.Create(
+            Guid.NewGuid(),
+            needlyUserId,
+            Guid.NewGuid(),
+            ruleName,
+            actionId,
+            Guid.NewGuid(),
+            RuleEffect.Pin,
+            0,
+            $"{ruleName} explanation",
+            executedAt);
 
     private static async Task<GitHubStoredEvent> AddEventAsync(
         RuleTestDatabase database,

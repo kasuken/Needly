@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -11,6 +13,8 @@ namespace Needly.Tests.Infrastructure;
 
 public sealed class InstallationInventoryServiceTests
 {
+    private const string RepositoriesPath = "installation/repositories?per_page=100";
+
     [Fact]
     public async Task HandleInstallationAsync_Created_PersistsOrganizationAndSelectedRepositories()
     {
@@ -31,6 +35,35 @@ public sealed class InstallationInventoryServiceTests
         Assert.Equal(InstallationState.Active, installation.State);
         Assert.Equal(701, repository.GitHubRepositoryId);
         Assert.Equal(installation.Id, repository.InstallationId);
+    }
+
+    [Fact]
+    public async Task HandleInstallationAsync_CreatedAllRepositoriesWithoutPayload_SynchronizesEveryApiPage()
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var apiClientFactory = new RecordingApiClientFactory(new Dictionary<string, ApiResponse>
+        {
+            [RepositoriesPath] = new(
+                "{\"repositories\":[{\"id\":701,\"name\":\"repo-701\",\"full_name\":\"octo-org/repo-701\",\"owner\":{\"id\":601,\"login\":\"octo-org\",\"type\":\"Organization\"}}]}",
+                "<https://api.github.com/installation/repositories?per_page=100&page=2>; rel=\"next\""),
+            [$"{RepositoriesPath}&page=2"] = new(
+                "{\"repositories\":[{\"id\":702,\"name\":\"repo-702\",\"full_name\":\"octo-org/repo-702\",\"owner\":{\"id\":601,\"login\":\"octo-org\",\"type\":\"Organization\"}}]}")
+        });
+        var service = CreateService(database.Context, apiClientFactory);
+
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent("created", repositorySelection: "all"),
+            TestData.CreatedAt,
+            CancellationToken.None);
+
+        Assert.Equal([501], apiClientFactory.InstallationIds);
+        Assert.Equal([RepositoriesPath, $"{RepositoriesPath}&page=2"], apiClientFactory.RequestPaths);
+        Assert.Equal(
+            [701L, 702L],
+            await database.Context.Repositories
+                .OrderBy(repository => repository.GitHubRepositoryId)
+                .Select(repository => repository.GitHubRepositoryId)
+                .ToListAsync());
     }
 
     [Fact]
@@ -120,16 +153,23 @@ public sealed class InstallationInventoryServiceTests
         Assert.Single(installation.Repositories);
     }
 
-    private static InstallationInventoryService CreateService(NeedlyDbContext context) =>
-        new(context, NullLogger<InstallationInventoryService>.Instance);
+    private static InstallationInventoryService CreateService(
+        NeedlyDbContext context,
+        RecordingApiClientFactory? apiClientFactory = null) =>
+        new(
+            context,
+            apiClientFactory ?? new RecordingApiClientFactory(),
+            new FixedTimeProvider(TestData.CreatedAt),
+            NullLogger<InstallationInventoryService>.Instance);
 
     private static GitHubInstallationEvent CreateInstallationEvent(
         string action,
-        IReadOnlyList<GitHubRepositoryPayload>? repositories = null) =>
-        new(action, CreateInstallationPayload(), repositories);
+        IReadOnlyList<GitHubRepositoryPayload>? repositories = null,
+        string repositorySelection = "selected") =>
+        new(action, CreateInstallationPayload(repositorySelection), repositories);
 
-    private static GitHubInstallationPayload CreateInstallationPayload() =>
-        new(501, new GitHubAccountPayload(601, "octo-org", "Organization"), "selected");
+    private static GitHubInstallationPayload CreateInstallationPayload(string repositorySelection = "selected") =>
+        new(501, new GitHubAccountPayload(601, "octo-org", "Organization"), repositorySelection);
 
     private static GitHubRepositoryPayload CreateRepository(long id) =>
         new(id, $"repo-{id}", $"octo-org/repo-{id}", new GitHubAccountPayload(601, "octo-org", "Organization"));
@@ -137,6 +177,63 @@ public sealed class InstallationInventoryServiceTests
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    private sealed record ApiResponse(string Json, string? Link = null);
+
+    private sealed class RecordingApiClientFactory : IGitHubApiClientFactory
+    {
+        private readonly IReadOnlyDictionary<string, ApiResponse> responses;
+
+        internal RecordingApiClientFactory(IReadOnlyDictionary<string, ApiResponse>? responses = null)
+        {
+            this.responses = responses ?? new Dictionary<string, ApiResponse>
+            {
+                [RepositoriesPath] = new("{\"repositories\":[]}")
+            };
+        }
+
+        internal List<long> InstallationIds { get; } = [];
+
+        internal List<string> RequestPaths { get; } = [];
+
+        public Task<IGitHubApiClient> CreateAsync(
+            long gitHubInstallationId,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            InstallationIds.Add(gitHubInstallationId);
+            return Task.FromResult<IGitHubApiClient>(new RecordingApiClient(this));
+        }
+
+        private sealed class RecordingApiClient(RecordingApiClientFactory factory) : IGitHubApiClient
+        {
+            public Task<HttpResponseMessage> SendAsync(
+                HttpMethod method,
+                string relativePath,
+                HttpContent? content,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Assert.Equal(HttpMethod.Get, method);
+                Assert.Null(content);
+                factory.RequestPaths.Add(relativePath);
+                Assert.True(factory.responses.TryGetValue(relativePath, out var configuredResponse));
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        configuredResponse.Json,
+                        Encoding.UTF8,
+                        "application/json")
+                };
+                if (configuredResponse.Link is not null)
+                {
+                    response.Headers.TryAddWithoutValidation("Link", configuredResponse.Link);
+                }
+
+                return Task.FromResult(response);
+            }
+        }
     }
 
     private sealed class InventoryTestDatabase : IAsyncDisposable

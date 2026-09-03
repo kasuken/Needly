@@ -1,3 +1,6 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Needly.Application.GitHub;
@@ -8,10 +11,17 @@ namespace Needly.Infrastructure.GitHub;
 /// <summary>Applies GitHub App installation inventory events to durable storage.</summary>
 public sealed class InstallationInventoryService(
     NeedlyDbContext dbContext,
+    IGitHubApiClientFactory apiClientFactory,
+    TimeProvider timeProvider,
     ILogger<InstallationInventoryService> logger) : IInstallationInventoryService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly NeedlyDbContext dbContext = dbContext
         ?? throw new ArgumentNullException(nameof(dbContext));
+    private readonly IGitHubApiClientFactory apiClientFactory = apiClientFactory
+        ?? throw new ArgumentNullException(nameof(apiClientFactory));
+    private readonly TimeProvider timeProvider = timeProvider
+        ?? throw new ArgumentNullException(nameof(timeProvider));
     private readonly ILogger<InstallationInventoryService> logger = logger
         ?? throw new ArgumentNullException(nameof(logger));
 
@@ -29,6 +39,7 @@ public sealed class InstallationInventoryService(
                 cancellationToken)
             .ConfigureAwait(false);
         var accountType = ParseAccountType(payload.Account.Type);
+        var synchronizeRepositories = false;
 
         switch (installationEvent.Action)
         {
@@ -57,6 +68,9 @@ public sealed class InstallationInventoryService(
                         cancellationToken).ConfigureAwait(false);
                 }
 
+                synchronizeRepositories = payload.RepositorySelection == "all" ||
+                    installationEvent.Repositories is null;
+
                 break;
             case "deleted":
                 RequireInstallation(installation, payload.Id).Delete(occurredAt);
@@ -75,6 +89,11 @@ public sealed class InstallationInventoryService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        if (synchronizeRepositories)
+        {
+            await SynchronizeRepositoriesAsync(payload.Id, cancellationToken).ConfigureAwait(false);
+        }
+
         logger.LogInformation(
             "Applied GitHub installation action {Action} for installation {GitHubInstallationId}",
             installationEvent.Action,
@@ -156,20 +175,72 @@ public sealed class InstallationInventoryService(
                         link.GitHubInstallationId == gitHubInstallationId,
                 cancellationToken)
             .ConfigureAwait(false);
-        if (exists)
+        if (!exists)
         {
-            return;
+            dbContext.UserInstallations.Add(UserInstallation.Create(
+                Guid.NewGuid(),
+                needlyUserId,
+                gitHubInstallationId,
+                linkedAt));
+            await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation(
+                "Linked Needly user {NeedlyUserId} to GitHub installation {GitHubInstallationId}",
+                needlyUserId,
+                gitHubInstallationId);
         }
 
-        dbContext.UserInstallations.Add(UserInstallation.Create(
-            Guid.NewGuid(),
-            needlyUserId,
-            gitHubInstallationId,
-            linkedAt));
+        var activeInstallationExists = await dbContext.Installations
+            .AnyAsync(
+                installation => installation.GitHubInstallationId == gitHubInstallationId &&
+                                installation.State == InstallationState.Active,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (activeInstallationExists)
+        {
+            await SynchronizeRepositoriesAsync(gitHubInstallationId, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task SynchronizeRepositoriesAsync(
+        long gitHubInstallationId,
+        CancellationToken cancellationToken)
+    {
+        var installation = await dbContext.Installations
+            .SingleAsync(
+                item => item.GitHubInstallationId == gitHubInstallationId &&
+                        item.State == InstallationState.Active,
+                cancellationToken)
+            .ConfigureAwait(false);
+        var client = await apiClientFactory
+            .CreateAsync(gitHubInstallationId, cancellationToken)
+            .ConfigureAwait(false);
+        var repositories = await GetAllRepositoriesAsync(client, cancellationToken).ConfigureAwait(false);
+        var distinctRepositories = repositories
+            .GroupBy(repository => repository.Id)
+            .Select(group => group.Last())
+            .ToArray();
+        var occurredAt = timeProvider.GetUtcNow();
+
+        await UpsertRepositoriesAsync(
+            installation.Id,
+            distinctRepositories,
+            occurredAt,
+            cancellationToken).ConfigureAwait(false);
+
+        var repositoryIds = distinctRepositories
+            .Select(repository => repository.Id)
+            .ToHashSet();
+        var existingRepositories = await dbContext.Repositories
+            .Where(repository => repository.InstallationId == installation.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        dbContext.Repositories.RemoveRange(
+            existingRepositories.Where(repository => !repositoryIds.Contains(repository.GitHubRepositoryId)));
+
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         logger.LogInformation(
-            "Linked Needly user {NeedlyUserId} to GitHub installation {GitHubInstallationId}",
-            needlyUserId,
+            "Synchronized {RepositoryCount} GitHub repositories for installation {GitHubInstallationId}",
+            distinctRepositories.Length,
             gitHubInstallationId);
     }
 
@@ -212,6 +283,40 @@ public sealed class InstallationInventoryService(
             }
         }
     }
+
+    private static async Task<IReadOnlyList<GitHubRepositoryPayload>> GetAllRepositoriesAsync(
+        IGitHubApiClient client,
+        CancellationToken cancellationToken)
+    {
+        const string RelativePath = "installation/repositories?per_page=100";
+        var repositories = new List<GitHubRepositoryPayload>();
+        var page = 1;
+        while (true)
+        {
+            var pagePath = page == 1 ? RelativePath : $"{RelativePath}&page={page}";
+            using var response = await client
+                .SendAsync(HttpMethod.Get, pagePath, null, cancellationToken)
+                .ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            var payload = await response.Content
+                .ReadFromJsonAsync<InstallationRepositoriesResponse>(JsonOptions, cancellationToken)
+                .ConfigureAwait(false)
+                ?? throw new JsonException($"GitHub returned an empty response for '{pagePath}'.");
+            repositories.AddRange(payload.Repositories);
+
+            var hasNextPage = response.Headers.TryGetValues("Link", out var links) &&
+                links.Any(link => link.Contains("rel=\"next\"", StringComparison.Ordinal));
+            if (!hasNextPage)
+            {
+                return repositories;
+            }
+
+            page++;
+        }
+    }
+
+    private sealed record InstallationRepositoriesResponse(
+        [property: JsonPropertyName("repositories")] IReadOnlyList<GitHubRepositoryPayload> Repositories);
 
     private static Installation RequireInstallation(Installation? installation, long gitHubInstallationId) =>
         installation ?? throw new InvalidOperationException(

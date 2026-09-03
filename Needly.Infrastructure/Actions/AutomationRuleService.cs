@@ -162,11 +162,8 @@ public sealed class AutomationRuleService(
         }
 
         await using var dbContext = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        return await dbContext.RuleExecutions.AsNoTracking()
+        var history = await dbContext.RuleExecutions.AsNoTracking()
             .Where(execution => execution.NeedlyUserId == needlyUserId)
-            .OrderByDescending(execution => execution.ExecutedAt)
-            .ThenByDescending(execution => execution.Id)
-            .Take(maximumCount)
             .Join(
                 dbContext.Actions.AsNoTracking(),
                 execution => execution.ActionId,
@@ -181,6 +178,11 @@ public sealed class AutomationRuleService(
                     execution.Explanation,
                     execution.ExecutedAt))
             .ToListAsync(cancellationToken).ConfigureAwait(false);
+                return history
+                    .OrderByDescending(execution => execution.ExecutedAt)
+                    .ThenByDescending(execution => execution.Id)
+                    .Take(maximumCount)
+                    .ToList();
     }
 
     private static AutomationRuleItem ToItem(AutomationRule rule) => new(
