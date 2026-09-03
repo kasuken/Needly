@@ -90,34 +90,36 @@
                                    HeaderClass="installation-heading"
                                    Gutters="false">
                     <TitleContent>
-                        <div class="installation-identity">
-                            <div class="installation-icon" aria-hidden="true">
-                                <MudIcon Icon="@(installation.AccountType == GitHubAccountType.Organization ? Icons.Material.Outlined.CorporateFare : Icons.Material.Outlined.Person)"/>
+                        <div class="installation-titlebar">
+                            <div class="installation-identity">
+                                <div class="installation-icon" aria-hidden="true">
+                                    <MudIcon Icon="@(installation.AccountType == GitHubAccountType.Organization ? Icons.Material.Outlined.CorporateFare : Icons.Material.Outlined.Person)"/>
+                                </div>
+                                <div class="installation-details">
+                                    <MudText Typo="Typo.h5" HtmlTag="h2" id="@($"installation-{installation.GitHubInstallationId}")">
+                                        @installation.AccountLogin
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @AccountTypeLabel(installation.AccountType) · Installation @installation.GitHubInstallationId
+                                    </MudText>
+                                </div>
                             </div>
-                            <div>
-                                <MudText Typo="Typo.h5" HtmlTag="h2" id="@($"installation-{installation.GitHubInstallationId}")">
-                                    @installation.AccountLogin
-                                </MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @AccountTypeLabel(installation.AccountType) · Installation @installation.GitHubInstallationId
-                                </MudText>
+                            <div class="installation-actions">
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Variant="Variant.Outlined"
+                                         Color="@StateColor(installation.State)">
+                                    @StateLabel(installation.State)
+                                </MudChip>
+                                <MudTooltip Text="Configure installation on GitHub">
+                                    <MudIconButton Icon="@Icons.Material.Outlined.OpenInNew"
+                                                   Href="@ConfigureUrl(installation)"
+                                                   Target="_blank"
+                                                   rel="noopener noreferrer"
+                                                   @onclick:stopPropagation="true"
+                                                   aria-label="Configure installation on GitHub"/>
+                                </MudTooltip>
                             </div>
-                        </div>
-                        <div class="installation-actions">
-                            <MudChip T="string"
-                                     Size="Size.Small"
-                                     Variant="Variant.Outlined"
-                                     Color="@StateColor(installation.State)">
-                                @StateLabel(installation.State)
-                            </MudChip>
-                            <MudTooltip Text="Configure installation on GitHub">
-                                <MudIconButton Icon="@Icons.Material.Outlined.OpenInNew"
-                                               Href="@ConfigureUrl(installation)"
-                                               Target="_blank"
-                                               rel="noopener noreferrer"
-                                               @onclick:stopPropagation="true"
-                                               aria-label="Configure installation on GitHub"/>
-                            </MudTooltip>
                         </div>
                     </TitleContent>
 
