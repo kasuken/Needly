@@ -1,14 +1,14 @@
 # Needly
 
 <div align="center">
-	<img src="Needly.Web/wwwroot/imgs/logo-with-text.png" alt="Needly" width="360" />
-
-	<h2>The Action Inbox for GitHub</h2>
-
-	<p>Turn GitHub activity into focused work: what needs your attention, why it matters, and what to do next.</p>
-
-	<p><a href="#getting-started">Get started</a> · <a href="#github-app-integration">Connect GitHub</a> · <a href="#architecture">Architecture</a> · <a href="#development">Development</a></p>
+  <img src="Needly.Web/wwwroot/imgs/logo-with-text.png" alt="Needly" width="360" />
 </div>
+
+<h1 align="center">The Action Inbox for GitHub</h1>
+
+<p align="center">Turn GitHub activity into focused work: what needs your attention, why it matters, and what to do next.</p>
+
+<p align="center"><a href="#getting-started">Get started</a> · <a href="#github-app-integration">Connect GitHub</a> · <a href="#architecture">Architecture</a> · <a href="#development">Development</a></p>
 
 Needly is a .NET 10 Blazor Web App for GitHub teams. It receives GitHub webhooks, turns relevant activity into durable actions, and presents an inbox organized around decisions and outcomes rather than an undifferentiated stream of notifications.
 
