@@ -212,12 +212,6 @@ The first authenticated session opens a five-step MudBlazor wizard. It explains 
 
 Completing or explicitly skipping the introduction stores a completion timestamp on the Needly user, so the wizard does not reopen on later sessions or other devices.
 
-## Progressive Web App
-
-Needly is installable as a basic PWA. Supported desktop and Android browsers expose an install button in the app bar when their native installation prompt is available. On an uninstalled iPhone or iPad, Needly displays the Safari steps: Share, **Add to Home Screen**, then **Add**.
-
-The service worker is deliberately network-only. It does not create application caches or provide an offline experience; an installed Needly app still requires a working connection to the Web host.
-
 ## Saved Views and Rules
 
 Saved Views and automation Rules use one versioned filter contract. Views filter the authorized Inbox and provide live open counts; Rules apply ordered, per-user effects as GitHub events create or update actions. See [docs/saved-views-and-rules.md](docs/saved-views-and-rules.md) for filter semantics, effects, ordering, team behavior, and persistence details.
