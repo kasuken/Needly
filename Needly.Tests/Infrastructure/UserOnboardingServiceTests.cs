@@ -15,12 +15,41 @@ public sealed class UserOnboardingServiceTests
         await using var database = await OnboardingTestDatabase.CreateAsync();
         var user = await database.SeedUserAsync();
         var service = new UserOnboardingService(
-            database.Context,
+            database,
             new FixedTimeProvider(TestData.CreatedAt.AddMinutes(1)));
 
         var isCompleted = await service.IsCompletedAsync(user.Id, CancellationToken.None);
 
         Assert.False(isCompleted);
+    }
+
+    [Fact]
+    public async Task IsCompletedAsync_MissingUser_ReturnsTrue()
+    {
+        await using var database = await OnboardingTestDatabase.CreateAsync();
+        var service = new UserOnboardingService(
+            database,
+            new FixedTimeProvider(TestData.CreatedAt.AddMinutes(1)));
+
+        var isCompleted = await service.IsCompletedAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.True(isCompleted);
+    }
+
+    [Fact]
+    public async Task IsCompletedAsync_ConcurrentCalls_DoNotShareDbContextOperations()
+    {
+        await using var database = await OnboardingTestDatabase.CreateAsync();
+        var user = await database.SeedUserAsync();
+        var service = new UserOnboardingService(
+            database,
+            new FixedTimeProvider(TestData.CreatedAt.AddMinutes(1)));
+
+        var results = await Task.WhenAll(
+            Enumerable.Range(0, 8)
+                .Select(_ => service.IsCompletedAsync(user.Id, CancellationToken.None)));
+
+        Assert.All(results, Assert.False);
     }
 
     [Fact]
@@ -30,7 +59,7 @@ public sealed class UserOnboardingServiceTests
         var user = await database.SeedUserAsync();
         var completedAt = TestData.CreatedAt.AddMinutes(1);
         var service = new UserOnboardingService(
-            database.Context,
+            database,
             new FixedTimeProvider(completedAt));
 
         await service.CompleteAsync(user.Id, CancellationToken.None);
@@ -48,13 +77,18 @@ public sealed class UserOnboardingServiceTests
         public override DateTimeOffset GetUtcNow() => utcNow;
     }
 
-    private sealed class OnboardingTestDatabase : IAsyncDisposable
+    private sealed class OnboardingTestDatabase : IDbContextFactory<NeedlyDbContext>, IAsyncDisposable
     {
         private readonly SqliteConnection connection;
+        private readonly DbContextOptions<NeedlyDbContext> options;
 
-        private OnboardingTestDatabase(SqliteConnection connection, NeedlyDbContext context)
+        private OnboardingTestDatabase(
+            SqliteConnection connection,
+            DbContextOptions<NeedlyDbContext> options,
+            NeedlyDbContext context)
         {
             this.connection = connection;
+            this.options = options;
             Context = context;
         }
 
@@ -64,13 +98,19 @@ public sealed class UserOnboardingServiceTests
         {
             var connection = new SqliteConnection("Data Source=:memory:");
             await connection.OpenAsync();
-            var context = new NeedlyDbContext(
-                new DbContextOptionsBuilder<NeedlyDbContext>()
-                    .UseSqlite(connection)
-                    .Options);
+            var options = new DbContextOptionsBuilder<NeedlyDbContext>()
+                .UseSqlite(connection)
+                .Options;
+            var context = new NeedlyDbContext(options);
             await context.Database.EnsureCreatedAsync();
-            return new OnboardingTestDatabase(connection, context);
+            return new OnboardingTestDatabase(connection, options, context);
         }
+
+        public NeedlyDbContext CreateDbContext() => new(options);
+
+        public Task<NeedlyDbContext> CreateDbContextAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(CreateDbContext());
 
         internal async Task<NeedlyUser> SeedUserAsync()
         {

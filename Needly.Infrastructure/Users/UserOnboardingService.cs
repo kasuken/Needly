@@ -5,27 +5,32 @@ namespace Needly.Infrastructure.Users;
 
 /// <summary>Persists first-run onboarding state for Needly users.</summary>
 public sealed class UserOnboardingService(
-    NeedlyDbContext dbContext,
+    IDbContextFactory<NeedlyDbContext> contextFactory,
     TimeProvider timeProvider) : IUserOnboardingService
 {
-    private readonly NeedlyDbContext dbContext = dbContext
-        ?? throw new ArgumentNullException(nameof(dbContext));
+    private readonly IDbContextFactory<NeedlyDbContext> contextFactory = contextFactory
+        ?? throw new ArgumentNullException(nameof(contextFactory));
     private readonly TimeProvider timeProvider = timeProvider
         ?? throw new ArgumentNullException(nameof(timeProvider));
 
     /// <inheritdoc />
-    public Task<bool> IsCompletedAsync(Guid needlyUserId, CancellationToken cancellationToken)
+    public async Task<bool> IsCompletedAsync(Guid needlyUserId, CancellationToken cancellationToken)
     {
         if (needlyUserId == Guid.Empty)
         {
             throw new ArgumentException("A Needly user identifier is required.", nameof(needlyUserId));
         }
 
-        return dbContext.NeedlyUsers
+        await using var dbContext = await contextFactory
+            .CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var hasIncompleteUser = await dbContext.NeedlyUsers
             .AsNoTracking()
-            .Where(user => user.Id == needlyUserId)
-            .Select(user => user.OnboardingCompletedAt != null)
-            .SingleAsync(cancellationToken);
+            .AnyAsync(
+                user => user.Id == needlyUserId && user.OnboardingCompletedAt == null,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return !hasIncompleteUser;
     }
 
     /// <inheritdoc />
@@ -36,6 +41,8 @@ public sealed class UserOnboardingService(
             throw new ArgumentException("A Needly user identifier is required.", nameof(needlyUserId));
         }
 
+        await using var dbContext = await contextFactory
+            .CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var user = await dbContext.NeedlyUsers
             .SingleAsync(user => user.Id == needlyUserId, cancellationToken)
             .ConfigureAwait(false);

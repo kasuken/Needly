@@ -12,11 +12,11 @@ param sqlAdminObjectId string
 @description('Display name of the Microsoft Entra SQL administrator.')
 param sqlAdminLogin string
 
-@description('GitHub repository allowed to deploy, in owner/name form.')
-param gitHubRepository string = 'kasuken/Needly'
-
 @description('GitHub environment that gates the deployment workflow.')
 param gitHubEnvironment string = 'production'
+
+@description('GitHub Actions OIDC subject allowed to deploy to this environment.')
+param gitHubOidcSubject string = 'repo:kasuken@2757486/Needly@1355126176:environment:production'
 
 @description('Enables the GitHub App integration. Secrets are supplied separately as app settings.')
 param gitHubIntegrationEnabled bool = false
@@ -178,7 +178,7 @@ resource deployFederation 'Microsoft.ManagedIdentity/userAssignedIdentities/fede
   name: 'github-release-${gitHubEnvironment}'
   properties: {
     issuer: 'https://token.actions.githubusercontent.com'
-    subject: 'repo:${gitHubRepository}:environment:${gitHubEnvironment}'
+    subject: gitHubOidcSubject
     audiences: [
       'api://AzureADTokenExchange'
     ]

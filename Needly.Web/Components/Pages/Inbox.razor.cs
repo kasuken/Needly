@@ -380,7 +380,7 @@ public partial class Inbox
         if (!string.IsNullOrWhiteSpace(ViewKey))
         {
             _appliedViewKey = null;
-            Navigation.NavigateTo("/", replace: true);
+            Navigation.NavigateTo("/inbox", replace: true);
         }
 
         await LoadAsync(showSkeleton: false);

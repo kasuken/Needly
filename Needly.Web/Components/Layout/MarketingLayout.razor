@@ -1,0 +1,42 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="NeedlyTheme.Default"/>
+<MudPopoverProvider/>
+<MudDialogProvider/>
+<MudSnackbarProvider/>
+
+<div class="marketing-shell">
+    <header class="marketing-nav" aria-label="Marketing navigation">
+        <a class="marketing-brand" href="/" aria-label="Needly home">
+            <img src="imgs/pwa/brand-mark-96.png" alt="" width="32" height="32"/>
+            <span>Needly</span>
+        </a>
+        <nav class="marketing-nav-links" aria-label="Product sections">
+            <a href="#how-it-works">How it works</a>
+            <a href="#features">Features</a>
+            <a href="#teams">Teams</a>
+        </nav>
+        <div class="marketing-nav-actions">
+            <AuthorizeView>
+                <Authorized>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/inbox" StartIcon="@Icons.Material.Outlined.Inbox">
+                        Open inbox
+                    </MudButton>
+                </Authorized>
+                <NotAuthorized>
+                    <MudButton Variant="Variant.Text" Color="Color.Inherit" Href="/auth/login" StartIcon="@Icons.Material.Outlined.Login">
+                        Sign in
+                    </MudButton>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </header>
+
+    @Body
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">x</span>
+</div>

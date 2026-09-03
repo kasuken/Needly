@@ -1,1 +1,146 @@
-﻿@* The Inbox component owns the root route. *@
+﻿@page "/"
+@layout MarketingLayout
+@attribute [AllowAnonymous]
+
+<PageTitle>Needly · The Action Inbox for GitHub</PageTitle>
+
+<main class="marketing-home">
+	<section class="marketing-hero" aria-labelledby="marketing-title">
+		<div class="marketing-hero-copy">
+			<p class="marketing-kicker">GitHub App powered action inbox</p>
+			<h1 id="marketing-title">Needly turns GitHub noise into a queue your team can finish.</h1>
+			<p class="marketing-lede">
+				Review requests, failed checks, unresolved feedback, mentions, and merge-ready pull requests become clear actions with ownership, risk, and next steps.
+			</p>
+			<div class="marketing-hero-actions">
+				<MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/auth/login" StartIcon="@Icons.Material.Outlined.Login">
+					Connect GitHub
+				</MudButton>
+				<MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="/inbox" StartIcon="@Icons.Material.Outlined.Inbox">
+					View inbox
+				</MudButton>
+			</div>
+			<dl class="marketing-proof-strip" aria-label="Needly product proof points">
+				<div>
+					<dt>Signed</dt>
+					<dd>Webhook verification</dd>
+				</div>
+				<div>
+					<dt>Durable</dt>
+					<dd>Event persistence</dd>
+				</div>
+				<div>
+					<dt>Team-aware</dt>
+					<dd>Direct and team assignments</dd>
+				</div>
+			</dl>
+		</div>
+
+		<div class="marketing-console" aria-label="Needly inbox preview">
+			<div class="console-topbar">
+				<span></span>
+				<span></span>
+				<span></span>
+				<strong>Action Inbox</strong>
+			</div>
+			<div class="console-summary">
+				<span>Today</span>
+				<strong>12 actions need a decision</strong>
+			</div>
+			<div class="console-row console-row-critical">
+				<span class="console-pill">Fix</span>
+				<div>
+					<strong>CI failed on checkout hardening</strong>
+					<small>kasuken/Needly · waiting 36m · owner: platform</small>
+				</div>
+				<MudIcon Icon="@Icons.Material.Outlined.WarningAmber"/>
+			</div>
+			<div class="console-row">
+				<span class="console-pill">Review</span>
+				<div>
+					<strong>PR ready for architecture review</strong>
+					<small>team request · at risk in 4h</small>
+				</div>
+				<MudIcon Icon="@Icons.Material.Outlined.RateReview"/>
+			</div>
+			<div class="console-row">
+				<span class="console-pill">Merge</span>
+				<div>
+					<strong>All checks passed, approvals met</strong>
+					<small>release workflow · no blockers</small>
+				</div>
+				<MudIcon Icon="@Icons.Material.Outlined.Merge"/>
+			</div>
+			<div class="console-footer">
+				<span>Rules applied</span>
+				<strong>Pin critical, snooze FYI, archive closed</strong>
+			</div>
+		</div>
+	</section>
+
+	<section id="how-it-works" class="marketing-band marketing-flow" aria-labelledby="flow-title">
+		<div>
+			<p class="marketing-kicker">Workflow</p>
+			<h2 id="flow-title">From webhook to decision, without the notification fog.</h2>
+		</div>
+		<div class="flow-grid">
+			<article>
+				<span>01</span>
+				<h3>Receive</h3>
+				<p>GitHub App webhooks are verified, persisted, deduplicated, and processed after acknowledgement.</p>
+			</article>
+			<article>
+				<span>02</span>
+				<h3>Detect</h3>
+				<p>Needly recognizes review requests, unresolved comments, failed checks, mentions, stale work, and merge readiness.</p>
+			</article>
+			<article>
+				<span>03</span>
+				<h3>Focus</h3>
+				<p>Saved views, team visibility, and automation rules shape the work into a practical queue.</p>
+			</article>
+		</div>
+	</section>
+
+	<section id="features" class="marketing-band feature-matrix" aria-labelledby="features-title">
+		<div class="section-heading">
+			<p class="marketing-kicker">Built for maintainers</p>
+			<h2 id="features-title">A focused operating surface for GitHub teams.</h2>
+		</div>
+		<div class="feature-grid">
+			<article>
+				<MudIcon Icon="@Icons.Material.Outlined.FilterAlt"/>
+				<h3>Saved Views</h3>
+				<p>Reusable filters for action type, state, repository, organization, author, assignee scope, wait time, and bot involvement.</p>
+			</article>
+			<article>
+				<MudIcon Icon="@Icons.Material.Outlined.Rule"/>
+				<h3>Automation Rules</h3>
+				<p>Automatically pin, archive, mute, snooze, or mark matching actions as FYI.</p>
+			</article>
+			<article>
+				<MudIcon Icon="@Icons.Material.Outlined.Groups"/>
+				<h3>Team Visibility</h3>
+				<p>Separate direct assignments from team requests so shared ownership stays visible.</p>
+			</article>
+			<article>
+				<MudIcon Icon="@Icons.Material.Outlined.History"/>
+				<h3>Resumable Bootstrap</h3>
+				<p>Import existing open work after installation while new webhooks keep flowing through the same durable pipeline.</p>
+			</article>
+		</div>
+	</section>
+
+	<section id="teams" class="marketing-band marketing-split" aria-labelledby="teams-title">
+		<div>
+			<p class="marketing-kicker">Why it matters</p>
+			<h2 id="teams-title">GitHub records activity. Needly asks what action survives it.</h2>
+		</div>
+		<div class="split-copy">
+			<p>
+				Teams do not need another stream. They need a place where work can be triaged, delegated, snoozed, muted, reopened, and eventually finished.
+			</p>
+			<a class="marketing-text-link" href="https://github.com/kasuken/Needly" target="_blank" rel="noreferrer">Explore the repository</a>
+		</div>
+	</section>
+</main>
