@@ -1,7 +1,7 @@
 .rule-history {
     margin-top: 1rem;
     padding-top: 1.5rem;
-    border-top: 3px solid var(--mud-palette-text-primary);
+    border-top: 1px solid var(--mud-palette-divider);
 }
 
 .history-empty { padding: 1.25rem 0; }
@@ -9,7 +9,10 @@
 .history-list {
     display: grid;
     margin-top: 1rem;
-    border-top: 1px solid var(--mud-palette-text-primary);
+    border: 1px solid var(--mud-palette-divider);
+    border-radius: 6px;
+    background: var(--mud-palette-surface);
+    overflow: hidden;
 }
 
 .history-row {
@@ -22,7 +25,7 @@
 }
 
 .history-row:hover {
-    background: color-mix(in srgb, var(--needly-lime) 14%, transparent);
+    background: var(--needly-hover);
 }
 
 @media (max-width: 599.98px) {

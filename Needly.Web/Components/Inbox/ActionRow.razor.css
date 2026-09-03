@@ -1,40 +1,39 @@
 .inbox-action {
-    --action-accent: #0b4dff;
+    --action-accent: var(--mud-palette-primary);
     display: grid;
-    min-height: 8.75rem;
+    min-height: 7.25rem;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 1.5rem;
+    gap: 1rem;
     align-items: center;
-    padding: 1.15rem 1.25rem 1.15rem 1.55rem;
-    border: 1px solid color-mix(in srgb, var(--mud-palette-text-primary) 70%, var(--mud-palette-divider));
-    border-left: 8px solid var(--action-accent);
-    border-radius: 0;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--mud-palette-divider);
+    border-radius: 6px;
     background: var(--mud-palette-surface);
-    box-shadow: 5px 5px 0 color-mix(in srgb, var(--action-accent) 18%, var(--mud-palette-divider));
-    animation: action-enter 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-    transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+    box-shadow: 0 1px 0 color-mix(in srgb, #000000 4%, transparent);
+    animation: action-enter 180ms ease-out both;
+    transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .inbox-action:hover {
-    border-color: var(--action-accent);
-    box-shadow: 7px 7px 0 color-mix(in srgb, var(--action-accent) 28%, var(--mud-palette-divider));
-    transform: translate(-2px, -2px);
+    border-color: color-mix(in srgb, var(--mud-palette-primary) 45%, var(--mud-palette-divider));
+    background: var(--needly-hover);
 }
 
 .inbox-action:focus,
 .inbox-action--selected {
-    outline: 3px solid color-mix(in srgb, var(--action-accent) 42%, transparent);
-    outline-offset: 3px;
-    box-shadow: 7px 7px 0 color-mix(in srgb, var(--action-accent) 30%, var(--mud-palette-divider));
+    border-color: var(--mud-palette-primary);
+    outline: 2px solid color-mix(in srgb, var(--mud-palette-primary) 22%, transparent);
+    outline-offset: 1px;
+    box-shadow: none;
 }
 
-.inbox-action--review { --action-accent: #0b4dff; }
-.inbox-action--fix { --action-accent: #e64b40; }
-.inbox-action--resolve { --action-accent: #d97600; }
+.inbox-action--review { --action-accent: var(--mud-palette-primary); }
+.inbox-action--fix { --action-accent: var(--mud-palette-error); }
+.inbox-action--resolve { --action-accent: var(--mud-palette-warning); }
 .inbox-action--merge { --action-accent: #7c3aed; }
 .inbox-action--respond { --action-accent: #d62e8b; }
-.inbox-action--followup { --action-accent: #07865f; }
-.inbox-action--fyi { --action-accent: #64748b; }
+.inbox-action--followup { --action-accent: var(--mud-palette-success); }
+.inbox-action--fyi { --action-accent: var(--mud-palette-text-secondary); }
 
 .action-row-main {
     min-width: 0;
@@ -60,10 +59,8 @@
 .action-repository {
     overflow: hidden;
     color: var(--mud-palette-text-secondary);
-    font-family: "IBM Plex Mono", Consolas, monospace;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     text-overflow: ellipsis;
-    text-transform: uppercase;
     white-space: nowrap;
 }
 
@@ -74,7 +71,7 @@
 }
 
 .action-title {
-    margin-top: 0.55rem;
+    margin-top: 0.45rem;
     overflow-wrap: anywhere;
     font-size: 1.05rem;
 }
@@ -88,10 +85,9 @@
     min-height: 1.5rem;
     flex-wrap: wrap;
     gap: 0.45rem 1.1rem;
-    margin-top: 0.7rem;
+    margin-top: 0.6rem;
     color: var(--mud-palette-text-secondary);
-    font-family: "IBM Plex Mono", Consolas, monospace;
-    font-size: 0.78rem;
+    font-size: 0.8125rem;
 }
 
 .action-meta span {
@@ -112,18 +108,18 @@
 }
 
 @keyframes action-enter {
-    from { opacity: 0; transform: translateX(-8px); }
+    from { opacity: 0; transform: translateY(3px); }
     to { opacity: 1; transform: translateX(0); }
 }
 
 @media (max-width: 699.98px) {
     .inbox-action {
-        min-height: 11rem;
+        min-height: 10rem;
         grid-template-columns: minmax(0, 1fr);
         gap: 1rem;
         align-items: start;
-        padding: 1rem 1rem 1rem 1.2rem;
-        box-shadow: 3px 3px 0 color-mix(in srgb, var(--action-accent) 20%, var(--mud-palette-divider));
+        padding: 1rem;
+        box-shadow: none;
     }
 
     .action-row-controls {

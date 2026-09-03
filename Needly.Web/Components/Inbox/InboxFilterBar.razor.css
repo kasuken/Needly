@@ -1,10 +1,10 @@
 .inbox-filter-bar {
     display: grid;
     gap: 1rem;
-    padding: 1rem 0 1.2rem;
-    border-top: 2px solid var(--mud-palette-text-primary);
-    border-bottom: 1px solid var(--mud-palette-divider);
-    background: transparent;
+    padding: 1rem;
+    border: 1px solid var(--mud-palette-divider);
+    border-radius: 6px;
+    background: var(--mud-palette-surface);
 }
 
 .filter-bar-heading,
@@ -17,7 +17,6 @@
 .filter-bar-heading {
     justify-content: space-between;
     gap: 1rem;
-    padding: 0 0.15rem;
 }
 
 .filter-active-view,
@@ -27,8 +26,7 @@
 }
 
 .filter-active-view {
-    font-family: "IBM Plex Mono", Consolas, monospace;
-    text-transform: uppercase;
+    font-weight: 600;
 }
 
 @media (max-width: 599.98px) {

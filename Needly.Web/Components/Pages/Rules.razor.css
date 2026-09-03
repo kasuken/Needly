@@ -7,13 +7,11 @@
 }
 
 .management-page-header {
-    padding-right: 1rem;
-    border-right: 6px solid var(--mud-palette-primary);
 }
 
 .section-heading {
-    padding-bottom: 0.75rem;
-    border-bottom: 2px solid var(--mud-palette-text-primary);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--mud-palette-divider);
 }
 
 @media (max-width: 599.98px) {

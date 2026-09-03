@@ -8,88 +8,88 @@ internal static class NeedlyTheme
     {
         PaletteLight = new PaletteLight
         {
-            Primary = "#0B4DFF",
+            Primary = "#0969DA",
             PrimaryContrastText = "#FFFFFF",
-            Secondary = "#E64B40",
+            Secondary = "#59636E",
             SecondaryContrastText = "#FFFFFF",
-            Background = "#F2F4F8",
-            Surface = "#FCFDFE",
-            AppbarBackground = "#FCFDFE",
-            AppbarText = "#111827",
-            DrawerBackground = "#081126",
-            DrawerText = "#E8EDFF",
-            TextPrimary = "#111827",
-            TextSecondary = "#5C667A",
-            ActionDefault = "#455168",
-            Divider = "#C8D0E0",
-            LinesDefault = "#C8D0E0",
-            Success = "#07865F",
-            Warning = "#C56A08",
-            Error = "#D43F3A",
-            Info = "#1167C4"
+            Background = "#F6F8FA",
+            Surface = "#FFFFFF",
+            AppbarBackground = "#F6F8FA",
+            AppbarText = "#1F2328",
+            DrawerBackground = "#FFFFFF",
+            DrawerText = "#1F2328",
+            TextPrimary = "#1F2328",
+            TextSecondary = "#59636E",
+            ActionDefault = "#59636E",
+            Divider = "#D1D9E0",
+            LinesDefault = "#D1D9E0",
+            Success = "#1A7F37",
+            Warning = "#9A6700",
+            Error = "#CF222E",
+            Info = "#0969DA"
         },
         PaletteDark = new PaletteDark
         {
-            Primary = "#7192FF",
-            PrimaryContrastText = "#071029",
-            Secondary = "#FF8178",
-            SecondaryContrastText = "#2B0D0A",
-            Background = "#090E19",
-            Surface = "#111827",
-            AppbarBackground = "#0D1424",
-            AppbarText = "#F3F6FF",
-            DrawerBackground = "#050A15",
-            DrawerText = "#DDE5FF",
-            TextPrimary = "#F3F6FF",
-            TextSecondary = "#A9B4CB",
-            ActionDefault = "#B9C3D8",
-            Divider = "#303B52",
-            LinesDefault = "#303B52",
-            Success = "#49C593",
-            Warning = "#F4AE55",
-            Error = "#FF716B",
-            Info = "#6CB4F5"
+            Primary = "#2F81F7",
+            PrimaryContrastText = "#FFFFFF",
+            Secondary = "#8B949E",
+            SecondaryContrastText = "#FFFFFF",
+            Background = "#0D1117",
+            Surface = "#161B22",
+            AppbarBackground = "#010409",
+            AppbarText = "#F0F6FC",
+            DrawerBackground = "#0D1117",
+            DrawerText = "#F0F6FC",
+            TextPrimary = "#F0F6FC",
+            TextSecondary = "#8B949E",
+            ActionDefault = "#8B949E",
+            Divider = "#30363D",
+            LinesDefault = "#30363D",
+            Success = "#3FB950",
+            Warning = "#D29922",
+            Error = "#F85149",
+            Info = "#58A6FF"
         },
         Typography = new Typography
         {
             Default = new DefaultTypography
             {
                 FontFamily = ["IBM Plex Sans", "Segoe UI", "sans-serif"],
-                FontSize = "0.9375rem",
+                FontSize = "0.875rem",
                 FontWeight = "400",
-                LineHeight = "1.5",
+                LineHeight = "1.45",
                 LetterSpacing = "0"
             },
             H1 = new H1Typography
             {
-                FontFamily = ["Syne", "Arial Black", "sans-serif"],
-                FontSize = "2.75rem",
-                FontWeight = "700",
-                LineHeight = "1.02",
-                LetterSpacing = "0"
-            },
-            H5 = new H5Typography
-            {
-                FontFamily = ["Syne", "Arial Black", "sans-serif"],
-                FontSize = "1.35rem",
-                FontWeight = "700",
-                LineHeight = "1.15",
-                LetterSpacing = "0"
-            },
-            H6 = new H6Typography
-            {
-                FontFamily = ["Syne", "Arial Black", "sans-serif"],
-                FontSize = "1.1rem",
+                FontFamily = ["IBM Plex Sans", "Segoe UI", "sans-serif"],
+                FontSize = "2rem",
                 FontWeight = "600",
                 LineHeight = "1.25",
                 LetterSpacing = "0"
             },
+            H5 = new H5Typography
+            {
+                FontFamily = ["IBM Plex Sans", "Segoe UI", "sans-serif"],
+                FontSize = "1rem",
+                FontWeight = "600",
+                LineHeight = "1.5",
+                LetterSpacing = "0"
+            },
+            H6 = new H6Typography
+            {
+                FontFamily = ["IBM Plex Sans", "Segoe UI", "sans-serif"],
+                FontSize = "1rem",
+                FontWeight = "600",
+                LineHeight = "1.5",
+                LetterSpacing = "0"
+            },
             Subtitle2 = new Subtitle2Typography
             {
-                FontFamily = ["IBM Plex Mono", "Consolas", "monospace"],
-                FontSize = "0.75rem",
+                FontFamily = ["IBM Plex Sans", "Segoe UI", "sans-serif"],
+                FontSize = "0.8125rem",
                 FontWeight = "600",
-                LineHeight = "1.4",
+                LineHeight = "1.5",
                 LetterSpacing = "0"
             },
             Button = new ButtonTypography
