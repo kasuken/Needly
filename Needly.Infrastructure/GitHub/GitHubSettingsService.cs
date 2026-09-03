@@ -29,7 +29,9 @@ public sealed class GitHubSettingsService(NeedlyDbContext dbContext) : IGitHubSe
         var internalInstallationIds = installations.Select(installation => installation.Id).ToArray();
         var repositories = await dbContext.Repositories
             .AsNoTracking()
-            .Where(repository => internalInstallationIds.Contains(repository.InstallationId))
+            .Where(repository =>
+                repository.IsActive &&
+                internalInstallationIds.Contains(repository.InstallationId))
             .OrderBy(repository => repository.Owner)
             .ThenBy(repository => repository.Name)
             .ToListAsync(cancellationToken)

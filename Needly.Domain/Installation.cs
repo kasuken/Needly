@@ -45,6 +45,9 @@ public sealed class Installation
     /// <summary>Gets the GitHub account login that owns the installation.</summary>
     public string AccountLogin { get; private set; } = string.Empty;
 
+    /// <summary>Gets the stable GitHub account identifier that owns the installation, when known.</summary>
+    public long? GitHubAccountId { get; private set; }
+
     /// <summary>Gets the kind of GitHub account that owns the installation.</summary>
     public GitHubAccountType AccountType { get; private set; }
 
@@ -73,7 +76,8 @@ public sealed class Installation
         long gitHubInstallationId,
         string accountLogin,
         DateTimeOffset createdAt,
-        GitHubAccountType accountType = GitHubAccountType.User)
+        GitHubAccountType accountType = GitHubAccountType.User,
+        long? gitHubAccountId = null)
     {
         var timestamp = DomainGuard.Timestamp(createdAt);
         return new Installation
@@ -81,6 +85,9 @@ public sealed class Installation
             Id = DomainGuard.Required(id, nameof(id)),
             GitHubInstallationId = DomainGuard.Positive(gitHubInstallationId, nameof(gitHubInstallationId)),
             AccountLogin = DomainGuard.Required(accountLogin, 100, nameof(accountLogin)),
+            GitHubAccountId = gitHubAccountId is null
+                ? null
+                : DomainGuard.Positive(gitHubAccountId.Value, nameof(gitHubAccountId)),
             AccountType = accountType,
             State = InstallationState.Active,
             CreatedAt = timestamp,
@@ -97,6 +104,24 @@ public sealed class Installation
     {
         AccountLogin = DomainGuard.Required(accountLogin, 100, nameof(accountLogin));
         UpdatedAt = DomainGuard.NotBefore(updatedAt, CreatedAt, nameof(updatedAt));
+    }
+
+    /// <summary>
+    /// Updates mutable installation account metadata without changing lifecycle state.
+    /// </summary>
+    /// <param name="accountLogin">The current owning account login.</param>
+    /// <param name="gitHubAccountId">The stable owning GitHub account identifier.</param>
+    /// <param name="accountType">The current owning account type.</param>
+    /// <param name="updatedAt">The explicit update timestamp.</param>
+    public void Update(
+        string accountLogin,
+        long gitHubAccountId,
+        GitHubAccountType accountType,
+        DateTimeOffset updatedAt)
+    {
+        Update(accountLogin, updatedAt);
+        GitHubAccountId = DomainGuard.Positive(gitHubAccountId, nameof(gitHubAccountId));
+        AccountType = accountType;
     }
 
     /// <summary>
@@ -122,6 +147,23 @@ public sealed class Installation
     {
         Update(accountLogin, updatedAt);
         AccountType = accountType;
+        State = InstallationState.Active;
+    }
+
+    /// <summary>
+    /// Marks the installation active and refreshes stable account metadata.
+    /// </summary>
+    /// <param name="accountLogin">The current owning account login.</param>
+    /// <param name="gitHubAccountId">The stable owning GitHub account identifier.</param>
+    /// <param name="accountType">The current owning account type.</param>
+    /// <param name="updatedAt">The explicit update timestamp.</param>
+    public void Activate(
+        string accountLogin,
+        long gitHubAccountId,
+        GitHubAccountType accountType,
+        DateTimeOffset updatedAt)
+    {
+        Update(accountLogin, gitHubAccountId, accountType, updatedAt);
         State = InstallationState.Active;
     }
 

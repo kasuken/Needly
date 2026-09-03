@@ -67,6 +67,111 @@ public sealed class InstallationInventoryServiceTests
     }
 
     [Fact]
+    public async Task HandleInstallationAsync_PersonalOwnerAlreadySignedIn_CreatesActiveInstallationMembership()
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var identityService = new GitHubIdentityService(
+            database.Context,
+            new FixedTimeProvider(TestData.CreatedAt),
+            NullLogger<GitHubIdentityService>.Instance);
+        await identityService.UpsertAsync(
+            new GitHubIdentityProfile(601, "octocat", "octocat@example.test", null, null),
+            CancellationToken.None);
+        var service = CreateService(database.Context);
+        var installationEvent = new GitHubInstallationEvent(
+            "created",
+            new GitHubInstallationPayload(
+                501,
+                new GitHubAccountPayload(601, "octocat", "User"),
+                "selected"),
+            []);
+
+        await service.HandleInstallationAsync(
+            installationEvent,
+            TestData.CreatedAt.AddMinutes(1),
+            CancellationToken.None);
+
+        var installation = await database.Context.Installations.SingleAsync();
+        var gitHubUser = await database.Context.GitHubUsers.SingleAsync();
+        var membership = await database.Context.InstallationMembers.SingleAsync();
+        Assert.Equal(installation.Id, membership.InstallationId);
+        Assert.Equal(gitHubUser.Id, membership.GitHubUserId);
+        Assert.True(membership.IsActive);
+    }
+
+    [Fact]
+    public async Task HandleInstallationAsync_NewPermissionsAccepted_RefreshesRepositoryInventory()
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var apiClientFactory = new RecordingApiClientFactory(new Dictionary<string, ApiResponse>
+        {
+            [RepositoriesPath] = new(
+                "{\"repositories\":[{\"id\":702,\"name\":\"repo-702\",\"full_name\":\"octo-org/repo-702\",\"owner\":{\"id\":601,\"login\":\"octo-org\",\"type\":\"Organization\"}}]}")
+        });
+        var service = CreateService(database.Context, apiClientFactory);
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent("created", [CreateRepository(701)]),
+            TestData.CreatedAt,
+            CancellationToken.None);
+        var installation = await database.Context.Installations.SingleAsync();
+        var historicalRepository = await database.Context.Repositories.SingleAsync();
+        database.Context.RawEvents.Add(RawEvent.Create(
+            Guid.NewGuid(),
+            installation.Id,
+            historicalRepository.Id,
+            "delivery-701",
+            "issues",
+            "opened",
+            "{}",
+            TestData.CreatedAt));
+        await database.Context.SaveChangesAsync();
+
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent("new_permissions_accepted", [CreateRepository(701)]),
+            TestData.CreatedAt.AddMinutes(1),
+            CancellationToken.None);
+
+        Assert.Equal(
+            [702L],
+            await database.Context.Repositories
+                .Where(repository => repository.IsActive)
+                .Select(repository => repository.GitHubRepositoryId)
+                .ToListAsync());
+        Assert.False((await database.Context.Repositories
+            .SingleAsync(repository => repository.GitHubRepositoryId == 701)).IsActive);
+        Assert.Equal(2, await database.Context.Repositories.CountAsync());
+    }
+
+    [Theory]
+    [InlineData("suspend", InstallationState.Suspended)]
+    [InlineData("deleted", InstallationState.Deleted)]
+    public async Task HandleInstallationAsync_NewPermissionsAccepted_PreservesInactiveState(
+        string inactiveAction,
+        InstallationState expectedState)
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var apiClientFactory = new RecordingApiClientFactory();
+        var service = CreateService(database.Context, apiClientFactory);
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent("created", []),
+            TestData.CreatedAt,
+            CancellationToken.None);
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent(inactiveAction),
+            TestData.CreatedAt.AddMinutes(1),
+            CancellationToken.None);
+
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent("new_permissions_accepted"),
+            TestData.CreatedAt.AddMinutes(2),
+            CancellationToken.None);
+
+        Assert.Equal(expectedState, (await database.Context.Installations.SingleAsync()).State);
+        Assert.Empty(apiClientFactory.InstallationIds);
+        Assert.Empty(apiClientFactory.RequestPaths);
+    }
+
+    [Fact]
     public async Task HandleInstallationAsync_SuspendUnsuspendDelete_PersistsEveryStateTransition()
     {
         await using var database = await InventoryTestDatabase.CreateAsync();
@@ -118,8 +223,9 @@ public sealed class InstallationInventoryServiceTests
             CancellationToken.None);
 
         var repositories = await database.Context.Repositories.AsNoTracking().ToListAsync();
-        var repository = Assert.Single(repositories);
+        var repository = Assert.Single(repositories, item => item.IsActive);
         Assert.Equal(702, repository.GitHubRepositoryId);
+        Assert.False(Assert.Single(repositories, item => item.GitHubRepositoryId == 701).IsActive);
     }
 
     [Fact]
@@ -151,6 +257,77 @@ public sealed class InstallationInventoryServiceTests
         Assert.Equal(501, installation.GitHubInstallationId);
         Assert.Equal("octo-org", installation.AccountLogin);
         Assert.Single(installation.Repositories);
+    }
+
+    [Fact]
+    public async Task LinkUserAsync_PersonalInstallationAlreadyExists_CreatesActiveInstallationMembership()
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var identityService = new GitHubIdentityService(
+            database.Context,
+            new FixedTimeProvider(TestData.CreatedAt),
+            NullLogger<GitHubIdentityService>.Instance);
+        var user = await identityService.UpsertAsync(
+            new GitHubIdentityProfile(601, "octocat", "octocat@example.test", null, null),
+            CancellationToken.None);
+        var installation = Installation.Create(
+            Guid.NewGuid(),
+            501,
+            "octocat",
+            TestData.CreatedAt,
+            GitHubAccountType.User);
+        database.Context.Installations.Add(installation);
+        await database.Context.SaveChangesAsync();
+        var service = CreateService(database.Context);
+
+        await service.LinkUserAsync(
+            user.NeedlyUserId,
+            501,
+            TestData.CreatedAt.AddMinutes(1),
+            CancellationToken.None);
+
+        var gitHubUser = await database.Context.GitHubUsers.SingleAsync();
+        var membership = await database.Context.InstallationMembers.SingleAsync();
+        Assert.Equal(installation.Id, membership.InstallationId);
+        Assert.Equal(gitHubUser.Id, membership.GitHubUserId);
+        Assert.True(membership.IsActive);
+    }
+
+    [Fact]
+    public async Task LinkUserAsync_PersonalOwnerRenamedAfterInstallation_UsesStableGitHubAccountId()
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var service = CreateService(database.Context);
+        var installationEvent = new GitHubInstallationEvent(
+            "created",
+            new GitHubInstallationPayload(
+                501,
+                new GitHubAccountPayload(601, "old-octocat", "User"),
+                "selected"),
+            []);
+        await service.HandleInstallationAsync(
+            installationEvent,
+            TestData.CreatedAt,
+            CancellationToken.None);
+        var identityService = new GitHubIdentityService(
+            database.Context,
+            new FixedTimeProvider(TestData.CreatedAt.AddMinutes(1)),
+            NullLogger<GitHubIdentityService>.Instance);
+        var user = await identityService.UpsertAsync(
+            new GitHubIdentityProfile(601, "new-octocat", "octocat@example.test", null, null),
+            CancellationToken.None);
+
+        await service.LinkUserAsync(
+            user.NeedlyUserId,
+            501,
+            TestData.CreatedAt.AddMinutes(1),
+            CancellationToken.None);
+
+        var installation = await database.Context.Installations.SingleAsync();
+        var membership = await database.Context.InstallationMembers.SingleAsync();
+        Assert.Equal(601, installation.GitHubAccountId);
+        Assert.Equal(installation.Id, membership.InstallationId);
+        Assert.True(membership.IsActive);
     }
 
     private static InstallationInventoryService CreateService(

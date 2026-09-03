@@ -54,7 +54,7 @@ public sealed class InboxVisibilityService(
                       member.GitHubUserId == gitHubUserId.Value &&
                                             member.IsActive))))
             .Join(
-                dbContext.Repositories.AsNoTracking(),
+                dbContext.Repositories.AsNoTracking().Where(repository => repository.IsActive),
                 action => action.RepositoryId,
                 repository => repository.Id,
                 (action, repository) => new

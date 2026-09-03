@@ -51,12 +51,17 @@ public sealed class InstallationInventoryService(
                         payload.Id,
                         payload.Account.Login,
                         occurredAt,
-                        accountType);
+                        accountType,
+                        payload.Account.Id);
                     dbContext.Installations.Add(installation);
                 }
                 else
                 {
-                    installation.Activate(payload.Account.Login, accountType, occurredAt);
+                    installation.Activate(
+                        payload.Account.Login,
+                        payload.Account.Id,
+                        accountType,
+                        occurredAt);
                 }
 
                 if (installationEvent.Repositories is not null)
@@ -70,6 +75,29 @@ public sealed class InstallationInventoryService(
 
                 synchronizeRepositories = payload.RepositorySelection == "all" ||
                     installationEvent.Repositories is null;
+                await EnsurePersonalInstallationMemberAsync(
+                    installation,
+                    payload.Account.Id,
+                    occurredAt,
+                    cancellationToken).ConfigureAwait(false);
+
+                break;
+            case "new_permissions_accepted":
+                installation = RequireInstallation(installation, payload.Id);
+                installation.Update(
+                    payload.Account.Login,
+                    payload.Account.Id,
+                    accountType,
+                    occurredAt);
+                if (installation.IsActive)
+                {
+                    synchronizeRepositories = true;
+                    await EnsurePersonalInstallationMemberAsync(
+                        installation,
+                        payload.Account.Id,
+                        occurredAt,
+                        cancellationToken).ConfigureAwait(false);
+                }
 
                 break;
             case "deleted":
@@ -80,7 +108,11 @@ public sealed class InstallationInventoryService(
                 break;
             case "unsuspend":
                 RequireInstallation(installation, payload.Id)
-                    .Activate(payload.Account.Login, accountType, occurredAt);
+                    .Activate(
+                        payload.Account.Login,
+                        payload.Account.Id,
+                        accountType,
+                        occurredAt);
                 break;
             default:
                 throw new ArgumentException(
@@ -143,7 +175,10 @@ public sealed class InstallationInventoryService(
                     removedIds.Contains(repository.GitHubRepositoryId))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
-            dbContext.Repositories.RemoveRange(removed);
+            foreach (var repository in removed)
+            {
+                repository.Deactivate(occurredAt);
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -162,9 +197,16 @@ public sealed class InstallationInventoryService(
         DateTimeOffset linkedAt,
         CancellationToken cancellationToken)
     {
-        if (!await dbContext.NeedlyUsers
-            .AnyAsync(user => user.Id == needlyUserId, cancellationToken)
-            .ConfigureAwait(false))
+        var gitHubUser = await dbContext.NeedlyUsers
+            .Where(user => user.Id == needlyUserId)
+            .Join(
+                dbContext.GitHubUsers,
+                user => user.GitHubUserId,
+                user => user.Id,
+                (_, user) => user)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (gitHubUser is null)
         {
             throw new InvalidOperationException($"Needly user {needlyUserId} was not found.");
         }
@@ -189,15 +231,79 @@ public sealed class InstallationInventoryService(
                 gitHubInstallationId);
         }
 
-        var activeInstallationExists = await dbContext.Installations
-            .AnyAsync(
+        var activeInstallation = await dbContext.Installations
+            .SingleOrDefaultAsync(
                 installation => installation.GitHubInstallationId == gitHubInstallationId &&
                                 installation.State == InstallationState.Active,
                 cancellationToken)
             .ConfigureAwait(false);
-        if (activeInstallationExists)
+        if (activeInstallation is not null)
         {
+            if (activeInstallation.AccountType == GitHubAccountType.User &&
+                (activeInstallation.GitHubAccountId == gitHubUser.GitHubUserId ||
+                 (activeInstallation.GitHubAccountId is null &&
+                  string.Equals(
+                      activeInstallation.AccountLogin,
+                      gitHubUser.Login,
+                      StringComparison.OrdinalIgnoreCase))))
+            {
+                await SetInstallationMembershipAsync(
+                    activeInstallation.Id,
+                    gitHubUser.Id,
+                    linkedAt,
+                    cancellationToken).ConfigureAwait(false);
+                await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             await SynchronizeRepositoriesAsync(gitHubInstallationId, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task EnsurePersonalInstallationMemberAsync(
+        Installation installation,
+        long accountGitHubUserId,
+        DateTimeOffset occurredAt,
+        CancellationToken cancellationToken)
+    {
+        if (installation.AccountType != GitHubAccountType.User)
+        {
+            return;
+        }
+
+        var gitHubUserId = await dbContext.GitHubUsers
+            .Where(user => user.GitHubUserId == accountGitHubUserId)
+            .Select(user => (Guid?)user.Id)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (gitHubUserId is not null)
+        {
+            await SetInstallationMembershipAsync(
+                installation.Id,
+                gitHubUserId.Value,
+                occurredAt,
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task SetInstallationMembershipAsync(
+        Guid installationId,
+        Guid gitHubUserId,
+        DateTimeOffset occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var membership = dbContext.InstallationMembers.Local.SingleOrDefault(item =>
+                item.InstallationId == installationId && item.GitHubUserId == gitHubUserId)
+            ?? await dbContext.InstallationMembers.SingleOrDefaultAsync(
+                item => item.InstallationId == installationId && item.GitHubUserId == gitHubUserId,
+                cancellationToken).ConfigureAwait(false);
+        if (membership is null)
+        {
+            dbContext.InstallationMembers.Add(
+                InstallationMember.Create(Guid.NewGuid(), installationId, gitHubUserId, occurredAt));
+        }
+        else
+        {
+            membership.Activate(occurredAt);
         }
     }
 
@@ -234,8 +340,11 @@ public sealed class InstallationInventoryService(
             .Where(repository => repository.InstallationId == installation.Id)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        dbContext.Repositories.RemoveRange(
-            existingRepositories.Where(repository => !repositoryIds.Contains(repository.GitHubRepositoryId)));
+        foreach (var repository in existingRepositories.Where(
+                     repository => !repositoryIds.Contains(repository.GitHubRepositoryId)))
+        {
+            repository.Deactivate(occurredAt);
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         logger.LogInformation(

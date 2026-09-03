@@ -59,6 +59,7 @@ public sealed class GitHubWebhookIngestionService(
                 .AsNoTracking()
                 .SingleOrDefaultAsync(
                     item => item.InstallationId == installation.Id &&
+                            item.IsActive &&
                             item.GitHubRepositoryId == metadata.GitHubRepositoryId,
                     cancellationToken)
                 .ConfigureAwait(false);

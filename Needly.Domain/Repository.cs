@@ -24,6 +24,9 @@ public sealed class Repository
     /// <summary>Gets the repository name.</summary>
     public string Name { get; private set; } = string.Empty;
 
+    /// <summary>Gets whether the installation can currently access the repository.</summary>
+    public bool IsActive { get; private set; }
+
     /// <summary>Gets when the repository record was created.</summary>
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -56,6 +59,7 @@ public sealed class Repository
             GitHubRepositoryId = DomainGuard.Positive(gitHubRepositoryId, nameof(gitHubRepositoryId)),
             Owner = DomainGuard.Required(owner, 100, nameof(owner)),
             Name = DomainGuard.Required(name, 100, nameof(name)),
+            IsActive = true,
             CreatedAt = timestamp,
             UpdatedAt = timestamp
         };
@@ -72,5 +76,14 @@ public sealed class Repository
         Owner = DomainGuard.Required(owner, 100, nameof(owner));
         Name = DomainGuard.Required(name, 100, nameof(name));
         UpdatedAt = DomainGuard.NotBefore(updatedAt, CreatedAt, nameof(updatedAt));
+        IsActive = true;
+    }
+
+    /// <summary>Marks the repository unavailable while retaining its durable history.</summary>
+    /// <param name="updatedAt">The explicit update timestamp.</param>
+    public void Deactivate(DateTimeOffset updatedAt)
+    {
+        UpdatedAt = DomainGuard.NotBefore(updatedAt, CreatedAt, nameof(updatedAt));
+        IsActive = false;
     }
 }

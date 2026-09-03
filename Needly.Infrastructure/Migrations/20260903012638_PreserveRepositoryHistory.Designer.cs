@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Needly.Infrastructure;
 
@@ -10,9 +11,11 @@ using Needly.Infrastructure;
 namespace Needly.Infrastructure.Migrations
 {
     [DbContext(typeof(NeedlyDbContext))]
-    partial class NeedlyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260903012638_PreserveRepositoryHistory")]
+    partial class PreserveRepositoryHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -284,9 +287,6 @@ namespace Needly.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
-
-                    b.Property<long?>("GitHubAccountId")
-                        .HasColumnType("INTEGER");
 
                     b.Property<long>("GitHubInstallationId")
                         .HasColumnType("INTEGER");

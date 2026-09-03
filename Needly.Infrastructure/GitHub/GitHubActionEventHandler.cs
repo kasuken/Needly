@@ -92,6 +92,7 @@ public sealed class GitHubActionEventHandler(
 
         var repository = await dbContext.Repositories.SingleOrDefaultAsync(
             item => item.InstallationId == installation.Id &&
+                item.IsActive &&
                 item.GitHubRepositoryId == gitHubRepositoryId,
             cancellationToken).ConfigureAwait(false);
         if (repository is null)
