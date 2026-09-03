@@ -112,6 +112,7 @@ jobs:
         env:
           NEEDLY_MIGRATIONS_CONNECTION: Server=tcp:${{ env.AZURE_SQL_SERVER }}.database.windows.net,1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;Authentication=Active Directory Default;
         run: |
+          dotnet restore Needly.sln
           dotnet tool restore
           dotnet ef database update \
             --project Needly.Infrastructure/Needly.Infrastructure.csproj \
