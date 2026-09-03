@@ -83,11 +83,13 @@
     }
     else if (_settings is not null)
     {
-        <div class="installation-list">
+        <MudExpansionPanels MultiExpansion="true" Class="installation-list">
             @foreach (var installation in _settings.Installations)
             {
-                <section class="settings-installation" aria-labelledby="@($"installation-{installation.GitHubInstallationId}")">
-                    <header class="installation-heading">
+                <MudExpansionPanel Class="settings-installation"
+                                   HeaderClass="installation-heading"
+                                   Gutters="false">
+                    <TitleContent>
                         <div class="installation-identity">
                             <div class="installation-icon" aria-hidden="true">
                                 <MudIcon Icon="@(installation.AccountType == GitHubAccountType.Organization ? Icons.Material.Outlined.CorporateFare : Icons.Material.Outlined.Person)"/>
@@ -113,12 +115,14 @@
                                                Href="@ConfigureUrl(installation)"
                                                Target="_blank"
                                                rel="noopener noreferrer"
+                                               @onclick:stopPropagation="true"
                                                aria-label="Configure installation on GitHub"/>
                             </MudTooltip>
                         </div>
-                    </header>
+                    </TitleContent>
 
-                    @if (installation.State != InstallationState.Active)
+                    <ChildContent>
+                        @if (installation.State != InstallationState.Active)
                     {
                         <MudAlert Severity="@(installation.State == InstallationState.Suspended ? Severity.Warning : Severity.Error)"
                                   Variant="Variant.Text"
@@ -148,12 +152,11 @@
                             </MudStack>
                         </MudAlert>
                     }
-
-                    <div class="repository-heading">
-                        <MudText Typo="Typo.subtitle2">Selected repositories</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            @installation.Repositories.Count @(installation.Repositories.Count == 1 ? "repository" : "repositories")
-                        </MudText>
+                        <div class="repository-heading">
+                            <MudText Typo="Typo.subtitle2">Selected repositories</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @installation.Repositories.Count @(installation.Repositories.Count == 1 ? "repository" : "repositories")
+                            </MudText>
                     </div>
 
                     @if (installation.Repositories.Count == 0)
@@ -195,9 +198,10 @@
                             </table>
                         </div>
                     }
-                </section>
+                    </ChildContent>
+                </MudExpansionPanel>
             }
-        </div>
+        </MudExpansionPanels>
     }
 </MudStack>
 

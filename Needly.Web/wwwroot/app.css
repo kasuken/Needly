@@ -667,6 +667,13 @@ h1:focus {
         gap: 1.5rem;
         padding: 1.25rem 1.5rem;
         background: color-mix(in srgb, var(--mud-palette-surface) 94%, var(--mud-palette-background));
+        cursor: pointer;
+        transition: background-color 140ms ease;
+    }
+
+    .installation-heading:hover,
+    .installation-heading:focus-visible {
+        background: var(--needly-control-background);
     }
 
     .installation-identity,
