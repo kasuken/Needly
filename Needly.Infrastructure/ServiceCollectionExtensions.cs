@@ -17,10 +17,10 @@ namespace Needly.Infrastructure;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds Needly's SQLite persistence services.
+    /// Adds Needly's SQL Server persistence services.
     /// </summary>
     /// <param name="services">The application service collection.</param>
-    /// <param name="connectionString">The SQLite connection string.</param>
+    /// <param name="connectionString">The SQL Server connection string.</param>
     /// <returns>The supplied service collection.</returns>
     public static IServiceCollection AddNeedlyInfrastructure(
         this IServiceCollection services,
@@ -32,7 +32,9 @@ public static class ServiceCollectionExtensions
             throw new ArgumentException("A database connection string is required.", nameof(connectionString));
         }
 
-        services.AddDbContextFactory<NeedlyDbContext>(options => options.UseSqlite(connectionString));
+        services.AddDbContextFactory<NeedlyDbContext>(options => options.UseSqlServer(
+            connectionString,
+            sqlServer => sqlServer.EnableRetryOnFailure()));
         return services;
     }
 

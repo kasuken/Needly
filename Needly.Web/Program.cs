@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using MudBlazor.Services;
 using Needly.Infrastructure;
 using Needly.Infrastructure.Actions;
@@ -34,6 +35,8 @@ builder.Services.AddOptions<ActionRiskOptions>()
     .ValidateOnStart();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<SavedViewNavigationState>();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<NeedlyDbContext>("database", tags: ["ready"]);
 builder.Services.AddAuthorization();
 var gitHubIntegrationEnabled = builder.Configuration
     .GetValue<bool>($"{GitHubAppOptions.SectionName}:Enabled");
@@ -70,6 +73,12 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -1,0 +1,152 @@
+name: Deploy to Azure
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  AZURE_WEBAPP_NAME: needly-prod-001
+  AZURE_RESOURCE_GROUP: Needly.Prod
+  AZURE_SQL_SERVER: needly-prod-001-server
+  AZURE_SQL_DATABASE: needly-prod-001-database
+  DOTNET_VERSION: '10.0.x'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore Needly.sln
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Build
+        run: dotnet build Needly.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test Needly.sln --no-build --no-restore --configuration Release
+
+      - name: Verify EF model and migrations agree
+        run: >
+          dotnet ef migrations has-pending-model-changes
+          --project Needly.Infrastructure/Needly.Infrastructure.csproj
+          --startup-project Needly.Infrastructure/Needly.Infrastructure.csproj
+          --configuration Release --no-build
+
+      - name: Publish
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            dotnet publish Needly.Web/Needly.Web.csproj --no-restore --configuration Release --output ./publish -p:Version="$version"
+          else
+            dotnet publish Needly.Web/Needly.Web.csproj --no-restore --configuration Release --output ./publish
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp
+          path: ./publish
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+    environment:
+      name: production
+      url: https://needly-prod-001.azurewebsites.net
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp
+          path: ./publish
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Open SQL firewall for this runner
+        id: firewall
+        run: |
+          runner_ip=$(curl -sS https://api.ipify.org)
+          rule="gh-runner-${GITHUB_RUN_ID}"
+          echo "rule=$rule" >> "$GITHUB_OUTPUT"
+          az sql server firewall-rule create \
+            --resource-group "$AZURE_RESOURCE_GROUP" --server "$AZURE_SQL_SERVER" \
+            --name "$rule" --start-ip-address "$runner_ip" --end-ip-address "$runner_ip" --output none
+
+      - name: Apply database migrations
+        env:
+          NEEDLY_MIGRATIONS_CONNECTION: Server=tcp:${{ env.AZURE_SQL_SERVER }}.database.windows.net,1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;Authentication=Active Directory Default;
+        run: |
+          dotnet tool restore
+          dotnet ef database update \
+            --project Needly.Infrastructure/Needly.Infrastructure.csproj \
+            --startup-project Needly.Infrastructure/Needly.Infrastructure.csproj \
+            --configuration Release
+
+      - name: Close SQL firewall for this runner
+        if: always() && steps.firewall.outputs.rule != ''
+        run: |
+          az sql server firewall-rule delete \
+            --resource-group "$AZURE_RESOURCE_GROUP" --server "$AZURE_SQL_SERVER" \
+            --name "${{ steps.firewall.outputs.rule }}" --output none
+
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ./publish
+
+      - name: Smoke test
+        run: |
+          base="https://${AZURE_WEBAPP_NAME}.azurewebsites.net"
+          for i in $(seq 1 12); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$base/health/ready") && \
+            [ "$status" = "200" ] && echo "Healthy" && exit 0
+            echo "Attempt $i: status $status — retrying in 15s"
+            sleep 15
+          done
+          echo "Health check failed" && exit 1
+
+      - name: Security smoke test
+        run: |
+          base="${AZURE_WEBAPP_NAME}.azurewebsites.net"
+          redirect=$(curl -s -o /dev/null -w "%{http_code} %{redirect_url}" "http://$base/")
+          case "$redirect" in
+            "301 https://"*|"307 https://"*|"308 https://"*) ;;
+            *) echo "HTTP did not redirect to HTTPS: $redirect"; exit 1 ;;
+          esac

@@ -65,7 +65,7 @@ dotnet tool run dotnet-ef database update `
 dotnet run --project .\Needly.Web\Needly.Web.csproj
 ```
 
-Open the URL printed by ASP.NET Core. In the default Development profile, the SQLite database is stored at `Needly.Infrastructure/needly.db`.
+Open the URL printed by ASP.NET Core. The default Development profile uses SQL Server LocalDB.
 
 > [!IMPORTANT]
 > Migrations are explicit operations. Needly does not call `EnsureCreated` or apply migrations during application startup.
@@ -141,13 +141,13 @@ Needly.Tests            xUnit tests for domain, infrastructure, web, and GitHub 
 The runtime flow is:
 
 ```text
-GitHub App -> signed webhook endpoint -> SQLite RawEvent
-																			-> background dispatcher
-																			-> action detectors and rules
-																			-> Action Inbox
+GitHub App -> signed webhook endpoint -> SQL Server RawEvent
+											-> background dispatcher
+											-> action detectors and rules
+											-> Action Inbox
 ```
 
-SQLite is the default persistence provider. The Infrastructure project owns the EF Core `DbContext`, design-time factory, and migrations.
+SQL Server is the persistence provider: LocalDB for development, Azure SQL in production. The Infrastructure project owns the EF Core `DbContext`, design-time factory, and migrations.
 
 ## Development
 
@@ -176,13 +176,13 @@ Run focused tests with the usual xUnit filters, or run the complete suite with `
 
 ## Local database
 
-Local development uses EF Core 10 with SQLite. The Development configuration points the Web host and the Infrastructure design-time factory at the same database:
+Local development uses EF Core 10 with SQL Server LocalDB. Both the Web host and the Infrastructure design-time factory default to:
 
 ```text
-Needly.Infrastructure/needly.db
+Server=(localdb)\MSSQLLocalDB;Database=Needly;Trusted_Connection=True;TrustServerCertificate=True
 ```
 
-The relative `Data Source=../Needly.Infrastructure/needly.db` override in `Needly.Web/appsettings.Development.json` is resolved from the Web project's content root. Other environments should provide `ConnectionStrings__Needly` explicitly.
+Override the host with `ConnectionStrings__Needly` and the design-time factory with the `NEEDLY_MIGRATIONS_CONNECTION` environment variable.
 
 Restore the repository-local EF tool and create or apply migrations from the repository root:
 
@@ -193,6 +193,52 @@ Restore the repository-local EF tool and create or apply migrations from the rep
 ```
 
 Database migrations are explicit development and deployment operations. The application does not call `EnsureCreated` or apply migrations during startup.
+
+## Azure deployment
+
+Production runs in the `Needly.Prod` resource group (France Central), described by [infra/main.bicep](infra/main.bicep) and [infra/main.bicepparam](infra/main.bicepparam):
+
+| Resource | SKU | Notes |
+| --- | --- | --- |
+| `needly-prodplan-linux` App Service plan | Linux B1 | Cheapest tier that supports custom domains and free managed certificates |
+| `needly-prod-001` web app | .NET 10 on Linux | System-assigned identity, WebSockets on for Blazor Server circuits |
+| `needly-prod-001-server` / `-database` | Azure SQL Basic, 5 DTU, 2 GB | Microsoft Entra-only authentication, public endpoint plus firewall rules |
+| `needly-prod-001` Application Insights + `-law` workspace | Pay-as-you-go, 1 GB/day cap | |
+| `id-needly-github-deploy` | User-assigned identity | GitHub OIDC federation, no stored credentials |
+
+Provision or update the environment:
+
+```powershell
+az deployment group create -g Needly.Prod --template-file .\infra\main.bicep --parameters .\infra\main.bicepparam
+```
+
+The database uses Entra-only authentication, so both managed identities need contained database users. [infra/grant-database-access.sql](infra/grant-database-access.sql) is idempotent and is applied with the Entra SQL administrator's token:
+
+```powershell
+$token = az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv
+powershell.exe -File .\infra\Invoke-SqlScript.ps1 `
+	-ServerFqdn needly-prod-001-server.database.windows.net `
+	-Database needly-prod-001-database -AccessToken $token `
+	-ScriptPath .\infra\grant-database-access.sql
+```
+
+[.github/workflows/release-deploy.yml](.github/workflows/release-deploy.yml) deploys on a published GitHub release or on manual dispatch. It builds and tests, verifies the EF model matches the migrations, applies migrations through a temporary firewall rule for the runner, publishes to App Service, and smoke tests `/health/ready`. The `production` environment holds `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`; the federated credential is scoped to that environment, so deployments cannot run from other branches or forks.
+
+GitHub App secrets are supplied as App Service application settings and are never committed:
+
+```powershell
+az webapp config appsettings set -g Needly.Prod -n needly-prod-001 --settings `
+	GitHubApp__Enabled=true GitHubApp__AppId=<id> GitHubApp__ClientId=<id> `
+	GitHubApp__ClientSecret=<secret> GitHubApp__WebhookSecret=<secret> GitHubApp__PrivateKey="<pem>"
+```
+
+To add a custom domain at no extra cost, point a CNAME at `needly-prod-001.azurewebsites.net`, add the `asuid` TXT verification record, then:
+
+```powershell
+az webapp config hostname add -g Needly.Prod --webapp-name needly-prod-001 --hostname <domain>
+az webapp config ssl create -g Needly.Prod --name needly-prod-001 --hostname <domain>
+az webapp config ssl bind -g Needly.Prod --name needly-prod-001 --certificate-thumbprint <thumbprint> --ssl-type SNI
+```
 
 ## GitHub App integration
 

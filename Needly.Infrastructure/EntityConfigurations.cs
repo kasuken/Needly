@@ -160,7 +160,7 @@ internal sealed class RawEventConfiguration : IEntityTypeConfiguration<RawEvent>
 
 internal sealed class NeedlyActionConfiguration : IEntityTypeConfiguration<NeedlyAction>
 {
-    private const string ActiveActionFilter = "\"State\" IN (0, 1)";
+    private const string ActiveActionFilter = "[State] IN (0, 1)";
 
     public void Configure(EntityTypeBuilder<NeedlyAction> builder)
     {
@@ -231,7 +231,7 @@ internal sealed class ActionSuppressionConfiguration : IEntityTypeConfiguration<
                 suppression.AssigneeType,
                 suppression.AssigneeId
             })
-            .HasFilter("\"IsActive\" = 1")
+            .HasFilter("[IsActive] = 1")
             .IsUnique();
         builder.HasIndex(suppression => new
         {
@@ -247,10 +247,11 @@ internal sealed class ActionSuppressionConfiguration : IEntityTypeConfiguration<
             .WithMany()
             .HasForeignKey(suppression => suppression.NeedlyUserId)
             .OnDelete(DeleteBehavior.Cascade);
+        // Cascading from Installation as well would give SQL Server two delete paths via Repository.
         builder.HasOne<Installation>()
             .WithMany()
             .HasForeignKey(suppression => suppression.InstallationId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Repository>()
             .WithMany()
             .HasForeignKey(suppression => suppression.RepositoryId)
@@ -276,7 +277,7 @@ internal sealed class ActionLifecycleUndoConfiguration : IEntityTypeConfiguratio
         builder.HasOne<ActionSuppression>()
             .WithMany()
             .HasForeignKey(undo => undo.SuppressionId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 
