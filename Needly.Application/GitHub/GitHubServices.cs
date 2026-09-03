@@ -136,6 +136,10 @@ public interface IGitHubActionEventHandler
     Task HandleAsync(GitHubStoredEvent storedEvent, CancellationToken cancellationToken);
 }
 
+/// <summary>Indicates that an action event references installation inventory Needly does not track.</summary>
+public sealed class GitHubActionInventoryUnavailableException(string message)
+    : InvalidOperationException(message);
+
 /// <summary>Maintains installation-scoped organization and team membership inventory.</summary>
 public interface IGitHubOrganizationMembershipService
 {

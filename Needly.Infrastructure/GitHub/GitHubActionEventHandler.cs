@@ -80,7 +80,7 @@ public sealed class GitHubActionEventHandler(
                 return false;
             }
 
-            throw new InvalidOperationException(
+            throw new GitHubActionInventoryUnavailableException(
                 $"GitHub installation {storedEvent.GitHubInstallationId} is unavailable for action processing.");
         }
 
@@ -102,7 +102,7 @@ public sealed class GitHubActionEventHandler(
                 return false;
             }
 
-            throw new InvalidOperationException(
+            throw new GitHubActionInventoryUnavailableException(
                 $"GitHub repository {gitHubRepositoryId} is unavailable for installation {storedEvent.GitHubInstallationId}.");
         }
 

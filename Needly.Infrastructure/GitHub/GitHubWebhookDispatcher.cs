@@ -80,6 +80,15 @@ public sealed class GitHubWebhookDispatcher(
         {
             throw;
         }
+        catch (GitHubActionInventoryUnavailableException exception)
+        {
+            rawEvent.MarkSkipped(timeProvider.GetUtcNow());
+            await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation(
+                exception,
+                "Skipped GitHub event {EventId} because its installation inventory is unavailable",
+                rawEvent.Id);
+        }
         catch (Exception exception) when (IsTransient(exception) && rawEvent.AttemptCount < options.WebhookMaxAttempts)
         {
             var delay = GetRetryDelay(rawEvent.AttemptCount);

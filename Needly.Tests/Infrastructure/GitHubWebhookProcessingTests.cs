@@ -116,6 +116,25 @@ public sealed class GitHubWebhookProcessingTests
     }
 
     [Fact]
+    public async Task DispatchAsync_ActionInventoryUnavailable_MarksStoredEventSkipped()
+    {
+        await using var database = await WebhookTestDatabase.CreateAsync();
+        var rawEvent = CreateRawEvent("pull_request", "delivery-untracked-installation");
+        database.Context.RawEvents.Add(rawEvent);
+        await database.Context.SaveChangesAsync();
+        var dispatcher = CreateDispatcher(
+            database.Context,
+            new RecordingInventoryService(),
+            new RecordingMembershipService(),
+            actionHandler: new RecordingActionHandler(
+                new GitHubActionInventoryUnavailableException("Installation is not tracked.")));
+
+        await dispatcher.DispatchAsync(rawEvent.Id, CancellationToken.None);
+
+        Assert.Equal(RawEventStatus.Skipped, rawEvent.Status);
+    }
+
+    [Fact]
     public async Task DispatchAsync_TransientFailure_PersistsRetryStatusAndRequeues()
     {
         await using var database = await WebhookTestDatabase.CreateAsync();
@@ -400,13 +419,18 @@ public sealed class GitHubWebhookProcessingTests
             CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
-    private sealed class RecordingActionHandler : IGitHubActionEventHandler
+    private sealed class RecordingActionHandler(Exception? exception = null) : IGitHubActionEventHandler
     {
         internal List<GitHubStoredEvent> Events { get; } = [];
 
         public Task HandleAsync(GitHubStoredEvent storedEvent, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (exception is not null)
+            {
+                return Task.FromException(exception);
+            }
+
             Events.Add(storedEvent);
             return Task.CompletedTask;
         }

@@ -427,7 +427,7 @@ public sealed class GitHubActionEventHandlerTests
         var storedEvent = await AddEventAsync(database.Context, "opened", 1, includeForeignKeys: false);
         var handler = CreateHandler(database, RecordingDetector("synthetic.context", 10, []));
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        var exception = await Assert.ThrowsAsync<GitHubActionInventoryUnavailableException>(
             () => handler.HandleAsync(storedEvent, CancellationToken.None));
 
         Assert.Contains($"installation {GitHubInstallationId}", exception.Message, StringComparison.Ordinal);
@@ -443,7 +443,7 @@ public sealed class GitHubActionEventHandlerTests
         var storedEvent = await AddEventAsync(database.Context, "opened", 1, includeForeignKeys: false);
         var handler = CreateHandler(database, RecordingDetector("synthetic.context", 10, []));
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        var exception = await Assert.ThrowsAsync<GitHubActionInventoryUnavailableException>(
             () => handler.HandleAsync(storedEvent, CancellationToken.None));
 
         Assert.Contains($"repository {GitHubRepositoryId}", exception.Message, StringComparison.Ordinal);
