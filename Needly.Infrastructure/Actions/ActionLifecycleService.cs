@@ -44,6 +44,43 @@ public sealed class ActionLifecycleService(
         ChangeAsync(needlyUserId, actionId, ActionState.Muted, null, cancellationToken);
 
     /// <inheritdoc />
+    public async Task<bool> SetPinnedAsync(
+        Guid needlyUserId,
+        Guid actionId,
+        bool isPinned,
+        CancellationToken cancellationToken)
+    {
+        await using var dbContext = await contextFactory
+            .CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var action = await GetAuthorizedActionAsync(
+            dbContext,
+            needlyUserId,
+            actionId,
+            requireOpen: true,
+            includeSuppressed: false,
+            cancellationToken).ConfigureAwait(false);
+        if (action is null)
+        {
+            return false;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var disposition = await dbContext.ActionDispositions.SingleOrDefaultAsync(
+            item => item.NeedlyUserId == needlyUserId && item.ActionId == actionId,
+            cancellationToken).ConfigureAwait(false);
+        if (disposition is null)
+        {
+            disposition = ActionDisposition.Create(Guid.NewGuid(), needlyUserId, actionId, now);
+            dbContext.ActionDispositions.Add(disposition);
+        }
+
+        disposition.SetPinned(isPinned, now);
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        broadcaster.Publish();
+        return true;
+    }
+
+    /// <inheritdoc />
     public async Task<bool> UndoAsync(
         Guid needlyUserId,
         Guid undoId,

@@ -1,0 +1,49 @@
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudSimpleTable Dense="true" Hover="false" Elevation="0">
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var shortcut in Shortcuts)
+                {
+                    <tr>
+                        <td><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@shortcut.Keys</MudChip></td>
+                        <td>@shortcut.Description</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    private static readonly (string Keys, string Description)[] Shortcuts =
+    [
+        ("j / k", "Next / previous action"),
+        ("Enter / o", "Open the primary action on GitHub"),
+        ("e", "Archive the focused action"),
+        ("s", "Snooze until later today"),
+        ("m", "Mute this subject"),
+        ("p", "Pin or unpin the focused action"),
+        ("x", "Toggle selection on the focused action"),
+        ("u", "Undo the last change"),
+        ("g i", "Go to Inbox"),
+        ("g v", "Go to Views"),
+        ("g r", "Go to Rules"),
+        ("?", "Show this shortcut list")
+    ];
+
+    private void Close() => MudDialog?.Close(DialogResult.Ok(true));
+}
