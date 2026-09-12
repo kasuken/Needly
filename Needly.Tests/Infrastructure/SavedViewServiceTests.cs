@@ -122,6 +122,75 @@ public sealed class SavedViewServiceTests
         Assert.Equal(1, view.OpenCount);
     }
 
+    // Schema version 2 additions (issue #32).
+    [Fact]
+    public async Task CreateAsync_SchemaVersion2Filter_RoundTripsNewCriteria()
+    {
+        await using var database = await ViewTestDatabase.CreateAsync();
+        var user = await SeedUserAsync(database, "first@example.test", 201);
+        var service = CreateService(database, new FakeInboxVisibilityService(
+            new Dictionary<Guid, IReadOnlyList<VisibleAction>>()));
+        var filter = new ActionFilter
+        {
+            Labels = ["bug", "needs-triage"],
+            IsDraft = DraftFilter.ExcludeDrafts,
+            SizeBuckets = [ActionSizeBucket.S, ActionSizeBucket.M],
+            Milestones = ["v2"],
+            RequestedViaCodeowners = CodeownersFilter.OnlyRequested
+        };
+
+        await service.CreateAsync(user.Id, "Reviewable", filter, CancellationToken.None);
+        var view = Assert.Single(await service.GetAsync(user.Id, CancellationToken.None), item => !item.IsBuiltIn);
+
+        Assert.Equal(ActionFilter.CurrentSchemaVersion, view.Filter.SchemaVersion);
+        Assert.Equal(["bug", "needs-triage"], view.Filter.Labels);
+        Assert.Equal(DraftFilter.ExcludeDrafts, view.Filter.IsDraft);
+        Assert.Equal([ActionSizeBucket.S, ActionSizeBucket.M], view.Filter.SizeBuckets);
+        Assert.Equal(["v2"], view.Filter.Milestones);
+        Assert.Equal(CodeownersFilter.OnlyRequested, view.Filter.RequestedViaCodeowners);
+    }
+
+    [Fact]
+    public async Task GetAsync_LegacySchemaVersion1Json_DefaultsNewCriteriaToNoConstraintAndKeepsExistingOnes()
+    {
+        await using var database = await ViewTestDatabase.CreateAsync();
+        var user = await SeedUserAsync(database, "first@example.test", 201);
+        const string legacyJson = """
+            {
+              "schemaVersion": 1,
+              "types": ["Review"],
+              "states": ["Open"],
+              "repositories": ["octo-org/needly"],
+              "organizations": ["octo-org"],
+              "authors": ["octocat"],
+              "assigneeScope": "Me",
+              "waitingAtLeast": "1.00:00:00",
+              "botInvolvement": "ExcludeBots"
+            }
+            """;
+        await using (var context = database.CreateContext())
+        {
+            context.SavedViews.Add(SavedView.Create(
+                Guid.NewGuid(), user.Id, "Legacy", legacyJson, 0, TestData.CreatedAt));
+            await context.SaveChangesAsync();
+        }
+
+        var service = CreateService(database, new FakeInboxVisibilityService(
+            new Dictionary<Guid, IReadOnlyList<VisibleAction>>()));
+        var view = Assert.Single(await service.GetAsync(user.Id, CancellationToken.None), item => !item.IsBuiltIn);
+
+        Assert.Equal(ActionFilter.CurrentSchemaVersion, view.Filter.SchemaVersion);
+        Assert.Equal([ActionType.Review], view.Filter.Types);
+        Assert.Equal(["octo-org/needly"], view.Filter.Repositories);
+        Assert.Equal(ActionAssigneeScope.Me, view.Filter.AssigneeScope);
+        Assert.Equal(BotInvolvementFilter.ExcludeBots, view.Filter.BotInvolvement);
+        Assert.Empty(view.Filter.Labels);
+        Assert.Equal(DraftFilter.Any, view.Filter.IsDraft);
+        Assert.Empty(view.Filter.SizeBuckets);
+        Assert.Empty(view.Filter.Milestones);
+        Assert.Equal(CodeownersFilter.Any, view.Filter.RequestedViaCodeowners);
+    }
+
     private static SavedViewService CreateService(
         ViewTestDatabase database,
         IInboxVisibilityService inbox) =>
@@ -150,7 +219,8 @@ public sealed class SavedViewServiceTests
             Guid.NewGuid(), owner, "needly", "Subject", 42, GitHubSubjectType.PullRequest,
             $"https://github.com/{owner}/needly/pull/42", type, ActionState.Open, "Reason", null,
             scope == ActionAssigneeScope.Me ? "@octocat" : "Maintainers (@maintainers)",
-            "Trigger", TestData.CreatedAt, waiting, false, null, author, scope, false, false);
+            "Trigger", TestData.CreatedAt, waiting, false, null, author, scope, false, false,
+            [], null, null, null, false);
 
     private sealed class FakeInboxVisibilityService(
         IReadOnlyDictionary<Guid, IReadOnlyList<VisibleAction>> actions) : IInboxVisibilityService

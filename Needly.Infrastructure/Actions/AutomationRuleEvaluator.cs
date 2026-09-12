@@ -64,7 +64,12 @@ public sealed class AutomationRuleEvaluator(TimeProvider timeProvider)
                     action.AuthorLogin,
                     scope.Value,
                     now > action.WaitingSince ? now - action.WaitingSince : TimeSpan.Zero,
-                    action.HasBotInvolvement);
+                    action.HasBotInvolvement,
+                    action.Labels,
+                    action.IsDraft,
+                    action.SizeBucket,
+                    action.Milestone,
+                    action.RequestedViaCodeowners);
                 foreach (var rule in rules.Where(rule => rule.NeedlyUserId == user.Id))
                 {
                     var filter = ActionFilterJsonSerializer.Deserialize(rule.FilterJson);
