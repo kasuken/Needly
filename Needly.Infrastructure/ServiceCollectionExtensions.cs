@@ -60,6 +60,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGitHubOrganizationMembershipService, GitHubOrganizationMembershipService>();
         services.AddScoped<ITeamReviewResolver, TeamReviewResolver>();
         services.AddScoped<IInboxVisibilityService, InboxVisibilityService>();
+        services.AddScoped<IWaitingOnOthersService, WaitingOnOthersService>();
         services.AddScoped<IActionLifecycleService, ActionLifecycleService>();
         services.AddScoped<IActionSnoozeService, ActionSnoozeService>();
         services.AddScoped<IActionRiskEvaluator, ActionRiskEvaluator>();
