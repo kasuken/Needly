@@ -153,7 +153,7 @@ public sealed class InboxVisibilityService(
         var visible = await GetVisibleAsync(needlyUserId, cancellationToken).ConfigureAwait(false);
         return visible.Where(action => ActionFilterMatcher.IsMatch(
             filter,
-            VisibleActionFilterCandidate.Create(action))).ToArray();
+            VisibleActionTextCandidateFactory.CreateWithText(action))).ToArray();
     }
 
     private static string FormatAssignee(

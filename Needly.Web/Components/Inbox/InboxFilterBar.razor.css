@@ -40,3 +40,32 @@
         justify-content: space-between;
     }
 }
+
+.filter-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--mud-palette-lines-inputs);
+    border-radius: 6px;
+    background: var(--mud-palette-background);
+}
+
+.filter-search-icon {
+    flex-shrink: 0;
+    color: var(--mud-palette-text-secondary);
+}
+
+.filter-search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--mud-palette-text-primary);
+    font: inherit;
+}
+
+.filter-search-error {
+    margin-top: -0.5rem;
+}

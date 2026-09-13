@@ -22,14 +22,59 @@
             </MudButton>
         </div>
     </div>
+    <div class="filter-search">
+        <MudIcon Icon="@Icons.Material.Outlined.Search" Size="Size.Small" Class="filter-search-icon"/>
+        <input type="text"
+               class="filter-search-input"
+               placeholder="Search: repo:owner/name is:review waiting:&gt;2d NOT bot:true &quot;phrase&quot;"
+               aria-label="Search inbox"
+               data-inbox-search="true"
+               value="@_searchQuery"
+               list="inbox-search-qualifiers"
+               @oninput="OnSearchInputAsync"/>
+        <datalist id="inbox-search-qualifiers">
+            @foreach (var qualifier in QualifierSuggestions)
+            {
+                <option value="@qualifier"></option>
+            }
+        </datalist>
+    </div>
+    @if (_searchError is not null)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="filter-search-error">@_searchError</MudAlert>
+    }
     <ActionFilterEditor Value="@Value" ValueChanged="ValueChanged"/>
 </section>
 
 @code {
+    // Static qualifier-name completion only. Suggesting known values (repositories/orgs/authors visible to the
+    // user) would need a service that enumerates them across the user's installations; no such service exists
+    // today (InboxVisibilityService only returns already-filtered VisibleAction projections), so that part of
+    // autocomplete is descoped for this first pass.
+    private static readonly string[] QualifierSuggestions =
+        ["repo:", "org:", "author:", "is:", "state:", "waiting:", "bot:"];
+
     [Parameter] public ActionFilter Value { get; set; } = new();
     [Parameter] public EventCallback<ActionFilter> ValueChanged { get; set; }
     [Parameter] public EventCallback SaveRequested { get; set; }
     [Parameter] public string ActiveViewName { get; set; } = "All actions";
+
+    private string _searchQuery = string.Empty;
+    private string? _searchError;
+    private ActionFilter? _lastEmitted;
+
+    protected override void OnParametersSet()
+    {
+        // Only resync the visible search text from an externally-driven Value change (e.g. a saved view was
+        // selected, or filters were cleared) -- not from the round-trip of a filter this component itself just
+        // emitted, which would otherwise strip qualifier text out from under the user while they are typing it
+        // (Value.FreeText only ever reflects the free-text portion of what was typed, not the whole query).
+        if (!Equals(Value, _lastEmitted))
+        {
+            _searchQuery = Value.FreeText ?? string.Empty;
+            _searchError = null;
+        }
+    }
 
     private int ActiveCriteriaCount =>
         (Value.Types.Length > 0 ? 1 : 0) +
@@ -39,7 +84,49 @@
         (Value.Authors.Length > 0 ? 1 : 0) +
         (Value.AssigneeScope != ActionAssigneeScope.Any ? 1 : 0) +
         (Value.WaitingAtLeast is not null ? 1 : 0) +
-        (Value.BotInvolvement != BotInvolvementFilter.Any ? 1 : 0);
+        (Value.BotInvolvement != BotInvolvementFilter.Any ? 1 : 0) +
+        (Value.FreeText is not null ? 1 : 0);
 
-    private Task ClearAsync() => ValueChanged.InvokeAsync(new ActionFilter());
+    private Task OnSearchInputAsync(ChangeEventArgs e) => HandleSearchChangedAsync(e.Value?.ToString() ?? string.Empty);
+
+    private Task HandleSearchChangedAsync(string text)
+    {
+        _searchQuery = text;
+        var result = ActionQueryParser.Parse(text);
+        if (!result.IsSuccess)
+        {
+            _searchError = result.Error;
+            return Task.CompletedTask;
+        }
+
+        _searchError = null;
+        var parsed = result.Filter!;
+
+        // The search box's qualifiers take precedence over the structured ActionFilterEditor for whichever
+        // fields the query text actually specifies; any field the query left unconstrained falls back to
+        // whatever the structured editor already has active, so the two controls stay additive rather than one
+        // silently overwriting the other.
+        var merged = Value with
+        {
+            Types = parsed.Types.Length > 0 ? parsed.Types : Value.Types,
+            States = parsed.States.Length > 0 ? parsed.States : Value.States,
+            Repositories = parsed.Repositories.Length > 0 ? parsed.Repositories : Value.Repositories,
+            Organizations = parsed.Organizations.Length > 0 ? parsed.Organizations : Value.Organizations,
+            Authors = parsed.Authors.Length > 0 ? parsed.Authors : Value.Authors,
+            BotInvolvement = parsed.BotInvolvement != BotInvolvementFilter.Any ? parsed.BotInvolvement : Value.BotInvolvement,
+            WaitingAtLeast = parsed.WaitingAtLeast ?? Value.WaitingAtLeast,
+            FreeText = parsed.FreeText
+        };
+        _lastEmitted = merged;
+        return ValueChanged.InvokeAsync(merged);
+    }
+
+    private Task ClearAsync()
+    {
+        _searchQuery = string.Empty;
+        _searchError = null;
+        var cleared = new ActionFilter();
+        _lastEmitted = cleared;
+        return ValueChanged.InvokeAsync(cleared);
+    }
 }

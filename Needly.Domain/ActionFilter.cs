@@ -61,6 +61,16 @@ public sealed record ActionFilter
 
     /// <summary>Gets the bot involvement criterion.</summary>
     public BotInvolvementFilter BotInvolvement { get; init; }
+
+    // Added for issue #24 (inbox search). Kept as a minimal, standalone addition so this
+    // does not conflict with the enriched-filter work in progress for issue #32.
+    /// <summary>Gets the free-text search term, or <see langword="null"/> for no free-text criterion.</summary>
+    /// <remarks>
+    /// Matched as a case-insensitive substring against the subject title, reason and context
+    /// (see <see cref="ActionFilterCandidate.Title"/>, <see cref="ActionFilterCandidate.Reason"/> and
+    /// <see cref="ActionFilterCandidate.Context"/>) by <see cref="ActionFilterMatcher"/>.
+    /// </remarks>
+    public string? FreeText { get; init; }
 }
 
 /// <summary>Contains the action and viewer facts consumed by <see cref="ActionFilterMatcher"/>.</summary>
@@ -72,6 +82,9 @@ public sealed record ActionFilter
 /// <param name="AssigneeScope">How the action is assigned relative to the viewer.</param>
 /// <param name="WaitingDuration">How long the action has waited for attention.</param>
 /// <param name="HasBotInvolvement">Whether the subject author or triggering activity involves a bot.</param>
+/// <param name="Title">The subject title, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
+/// <param name="Reason">The action reason text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
+/// <param name="Context">Additional context text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
 public sealed record ActionFilterCandidate(
     ActionType Type,
     ActionState State,
@@ -80,7 +93,10 @@ public sealed record ActionFilterCandidate(
     string? Author,
     ActionAssigneeScope AssigneeScope,
     TimeSpan WaitingDuration,
-    bool HasBotInvolvement);
+    bool HasBotInvolvement,
+    string? Title = null,
+    string? Reason = null,
+    string? Context = null);
 
 /// <summary>Applies the shared saved-view and rule filter semantics to action facts.</summary>
 public static class ActionFilterMatcher
@@ -107,7 +123,8 @@ public static class ActionFilterMatcher
                 BotInvolvementFilter.OnlyBots => candidate.HasBotInvolvement,
                 BotInvolvementFilter.ExcludeBots => !candidate.HasBotInvolvement,
                 _ => false
-            };
+            } &&
+            MatchesFreeText(filter.FreeText, candidate);
     }
 
     private static bool Contains<T>(IReadOnlyCollection<T> accepted, T value)
@@ -117,4 +134,15 @@ public static class ActionFilterMatcher
     private static bool Contains(IReadOnlyCollection<string> accepted, string? value) =>
         accepted.Count == 0 ||
         (value is not null && accepted.Contains(value, StringComparer.OrdinalIgnoreCase));
+
+    // Added for issue #24 (inbox search): case-insensitive substring match against title, reason and
+    // context. A null or empty FreeText criterion matches everything, consistent with the other criteria.
+    private static bool MatchesFreeText(string? freeText, ActionFilterCandidate candidate) =>
+        string.IsNullOrEmpty(freeText) ||
+        ContainsIgnoreCase(candidate.Title, freeText) ||
+        ContainsIgnoreCase(candidate.Reason, freeText) ||
+        ContainsIgnoreCase(candidate.Context, freeText);
+
+    private static bool ContainsIgnoreCase(string? haystack, string needle) =>
+        haystack is not null && haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
 }
