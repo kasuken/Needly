@@ -104,7 +104,15 @@ internal sealed record GitHubIssuePayload(
     [property: JsonPropertyName("html_url")] string HtmlUrl,
     [property: JsonPropertyName("title")] string Title,
     [property: JsonPropertyName("user")] GitHubActionUserPayload User,
-    [property: JsonPropertyName("pull_request")] JsonElement? PullRequest);
+    [property: JsonPropertyName("pull_request")] JsonElement? PullRequest,
+    [property: JsonPropertyName("updated_at")] DateTimeOffset? UpdatedAt = null,
+    [property: JsonPropertyName("body")] string? Body = null,
+    [property: JsonPropertyName("labels")] IReadOnlyList<GitHubLabelPayload>? Labels = null,
+    [property: JsonPropertyName("assignees")] IReadOnlyList<GitHubActionUserPayload>? Assignees = null);
+
+internal sealed record GitHubLabelPayload(
+    [property: JsonPropertyName("id")] long Id,
+    [property: JsonPropertyName("name")] string Name);
 
 internal sealed record GitHubAssociatedPullRequestPayload(
     [property: JsonPropertyName("number")] int Number);
