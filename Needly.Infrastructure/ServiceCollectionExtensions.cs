@@ -64,6 +64,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IActionSnoozeService, ActionSnoozeService>();
         services.AddScoped<IActionRiskEvaluator, ActionRiskEvaluator>();
         services.AddScoped<ISavedViewService, SavedViewService>();
+        services.AddScoped<IDoneActionsService, DoneActionsService>();
         services.AddScoped<IAutomationRuleService, AutomationRuleService>();
         services.AddSingleton<AutomationRuleEvaluator>();
         services.AddOptions<ActionRiskOptions>()
