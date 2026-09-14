@@ -39,6 +39,9 @@ builder.Services.AddOptions<FollowUpOptions>()
 builder.Services.AddOptions<DecideOptions>()
     .Bind(builder.Configuration.GetSection(DecideOptions.SectionName))
     .ValidateOnStart();
+builder.Services.AddOptions<AttentionScoreOptions>()
+    .Bind(builder.Configuration.GetSection(AttentionScoreOptions.SectionName))
+    .ValidateOnStart();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<SavedViewNavigationState>();
 builder.Services.AddHealthChecks()
