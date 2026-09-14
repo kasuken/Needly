@@ -8,3 +8,4 @@ needly.db-shm
 needly.db-wal
 
 .idea/
+/.claude/worktrees/

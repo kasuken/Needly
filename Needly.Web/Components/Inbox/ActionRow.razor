@@ -16,6 +16,11 @@
     <div class="action-row-main">
         <div class="action-row-heading">
             <MudIcon Icon="@ActionIcon" Size="Size.Small" Class="action-type-icon"/>
+            <MudTooltip Text="@ScoreTooltip">
+                <MudChip T="string" Size="Size.Small" Color="@ScoreColor" Variant="Variant.Filled" Class="action-score-chip">
+                    @Score.Score &middot; @Score.Band
+                </MudChip>
+            </MudTooltip>
             <MudText Typo="Typo.caption" Class="action-repository">
                 @Action.RepositoryOwner/@Action.RepositoryName
                 <span class="action-subject">@SubjectLabel #@Action.SubjectNumber</span>

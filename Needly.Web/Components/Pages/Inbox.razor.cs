@@ -38,6 +38,7 @@ public partial class Inbox
     private string? _appliedViewKey;
 
     [Inject] private IInboxVisibilityService InboxService { get; set; } = null!;
+    [Inject] private IAttentionScoreCalculator ScoreCalculator { get; set; } = null!;
     [Inject] private ISavedViewService SavedViewService { get; set; } = null!;
     [Inject] private SavedViewNavigationState ViewState { get; set; } = null!;
     [Inject] private IActionLifecycleService LifecycleService { get; set; } = null!;
@@ -92,8 +93,11 @@ public partial class Inbox
             .OrderBy(action => action.RepositoryOwner, StringComparer.OrdinalIgnoreCase)
             .ThenBy(action => action.RepositoryName, StringComparer.OrdinalIgnoreCase)
             .ToArray(),
-        // Attention: the order InboxVisibilityService already applies (pinned, then at-risk, then longest waiting).
-        _ => actions.ToArray()
+        // Attention (default): highest explainable score first, oldest-waiting as the tie-break.
+        _ => actions
+            .OrderByDescending(action => ScoreCalculator.Calculate(action).Score)
+            .ThenBy(action => action.WaitingSince)
+            .ToArray()
     };
 
     private int SelectedCount => _selectedIds.Count;
