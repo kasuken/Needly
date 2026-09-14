@@ -1,0 +1,39 @@
+.waiting-group {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.waiting-group-heading {
+    display: flex;
+    min-height: 2rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0.25rem;
+}
+
+.waiting-group-heading ::deep .mud-typography-h5 {
+    font-size: 1rem;
+}
+
+.waiting-group-heading ::deep .mud-typography-caption {
+    display: grid;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    place-items: center;
+    border: 1px solid var(--mud-palette-divider);
+    border-radius: 999px;
+    background: var(--needly-control-background);
+    color: var(--mud-palette-text-secondary);
+    font-weight: 600;
+}
+
+.waiting-group-list {
+    display: grid;
+    gap: 0.5rem;
+}
+
+@media (max-width: 599.98px) {
+    .waiting-group-heading {
+        min-height: 2.25rem;
+    }
+}

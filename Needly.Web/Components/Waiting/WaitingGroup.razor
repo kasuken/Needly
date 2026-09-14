@@ -1,0 +1,22 @@
+<section class="waiting-group" aria-labelledby="@HeadingId">
+    <header class="waiting-group-heading">
+        <MudText Typo="Typo.h5" HtmlTag="h2" id="@HeadingId">@Title</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">@Items.Count</MudText>
+    </header>
+    <div class="waiting-group-list">
+        @foreach (var item in Items)
+        {
+            <WaitingRow @key="@($"{item.RepositoryId}-{item.SubjectNumber}")" Item="item"/>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<WaitingOnOthersItem> Items { get; set; } = [];
+
+    private string HeadingId => $"waiting-group-{Title.Replace(" ", "-", StringComparison.Ordinal).ToLowerInvariant()}";
+}

@@ -1,0 +1,103 @@
+.waiting-item {
+    --waiting-accent: var(--mud-palette-primary);
+    display: grid;
+    min-height: 6.5rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--mud-palette-divider);
+    border-radius: 6px;
+    background: var(--mud-palette-surface);
+    box-shadow: 0 1px 0 color-mix(in srgb, #000000 4%, transparent);
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.waiting-item:hover {
+    border-color: color-mix(in srgb, var(--mud-palette-primary) 45%, var(--mud-palette-divider));
+    background: var(--needly-hover);
+}
+
+.waiting-item--noreviewerassigned { --waiting-accent: var(--mud-palette-text-secondary); }
+.waiting-item--awaitingreview { --waiting-accent: var(--mud-palette-primary); }
+.waiting-item--awaitingrereview { --waiting-accent: var(--mud-palette-warning); }
+
+.waiting-row-main {
+    min-width: 0;
+}
+
+.waiting-row-heading,
+.waiting-meta,
+.waiting-row-controls,
+.waiting-meta span {
+    display: flex;
+    align-items: center;
+}
+
+.waiting-row-heading {
+    min-height: 1.5rem;
+    gap: 0.55rem;
+}
+
+.waiting-type-icon {
+    color: var(--waiting-accent);
+}
+
+.waiting-repository {
+    overflow: hidden;
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.waiting-subject {
+    margin-left: 0.4rem;
+    color: var(--mud-palette-text-primary);
+    font-weight: 600;
+}
+
+.waiting-title {
+    margin-top: 0.45rem;
+    overflow-wrap: anywhere;
+    font-size: 1.05rem;
+}
+
+.waiting-reason {
+    margin-top: 0.35rem;
+    color: var(--mud-palette-text-primary);
+}
+
+.waiting-meta {
+    min-height: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.45rem 1.1rem;
+    margin-top: 0.6rem;
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.8125rem;
+}
+
+.waiting-meta span {
+    min-width: 0;
+    gap: 0.3rem;
+}
+
+.waiting-row-controls {
+    flex: 0 0 auto;
+}
+
+@media (max-width: 699.98px) {
+    .waiting-item {
+        min-height: 9rem;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+        align-items: start;
+        padding: 1rem;
+        box-shadow: none;
+    }
+
+    .waiting-row-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+}

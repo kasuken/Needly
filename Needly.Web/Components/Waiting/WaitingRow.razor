@@ -1,0 +1,42 @@
+<article class="@CssClass" data-waiting-item>
+    <div class="waiting-row-main">
+        <div class="waiting-row-heading">
+            <MudIcon Icon="@ReasonIcon" Size="Size.Small" Class="waiting-type-icon"/>
+            <MudText Typo="Typo.caption" Class="waiting-repository">
+                @Item.RepositoryOwner/@Item.RepositoryName
+                <span class="waiting-subject">PR #@Item.SubjectNumber</span>
+            </MudText>
+            @if (Item.IsDraft)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">
+                    Draft
+                </MudChip>
+            }
+        </div>
+
+        <MudText Typo="Typo.h6" HtmlTag="h3" Class="waiting-title">@Item.SubjectTitle</MudText>
+        <MudText Typo="Typo.body2" Class="waiting-reason">@ReasonLabel</MudText>
+
+        <div class="waiting-meta">
+            <span><MudIcon Icon="@Icons.Material.Outlined.Person" Size="Size.Small"/>@BlockingPartyLabel</span>
+            <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" Size="Size.Small"/>Waiting @WaitingLabel</span>
+        </div>
+    </div>
+
+    <div class="waiting-row-controls">
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   EndIcon="@Icons.Material.Outlined.NorthEast"
+                   Href="@Item.SubjectUrl"
+                   Target="_blank"
+                   rel="noopener noreferrer">
+            Open on GitHub
+        </MudButton>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public WaitingOnOthersItem Item { get; set; } = null!;
+}
