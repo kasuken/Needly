@@ -240,6 +240,13 @@ public sealed class GitHubActionEventHandler(
             storedEvent.PayloadJson,
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
         var payloadAuthor = payload?.PullRequest?.User ?? payload?.Issue?.User;
+
+        // Schema version 2 subject facts (issue #32). The full pull_request/issue payload is present
+        // whenever payloadAuthor is (see the check-event fallback below), so labels, milestone, draft
+        // state, and diff size can be read directly from it in that same branch.
+        var payloadLabels = payload?.PullRequest?.Labels ?? payload?.Issue?.Labels;
+        var payloadMilestone = payload?.PullRequest?.Milestone ?? payload?.Issue?.Milestone;
+
         foreach (var action in actions)
         {
             var author = payloadAuthor;
@@ -255,12 +262,38 @@ public sealed class GitHubActionEventHandler(
                 action.UpdateFilterMetadata(
                     state?.AuthorLogin,
                     IsBot(state?.AuthorLogin, null) || IsBot(payload?.Sender?.Login, payload?.Sender?.Type));
+                // This event's payload carries no pull_request/issue object (e.g. a check event), so
+                // there is no fresher label/milestone/draft/size data than what is already stored.
+                action.UpdateSubjectMetadata(
+                    action.Labels,
+                    action.SubjectType == GitHubSubjectType.PullRequest ? state?.IsDraft ?? action.IsDraft : null,
+                    action.SizeBucket,
+                    action.Milestone,
+                    action.RequestedViaCodeowners);
                 continue;
             }
 
             action.UpdateFilterMetadata(
                 author?.Login,
                 IsBot(author?.Login, author?.Type) || IsBot(payload?.Sender?.Login, payload?.Sender?.Type));
+
+            var labels = payloadLabels?.Select(label => label.Name).ToArray() ?? action.Labels;
+            var milestone = payloadMilestone?.Title ?? action.Milestone;
+            bool? isDraft = action.SubjectType == GitHubSubjectType.PullRequest
+                ? payload?.PullRequest?.Draft ?? action.IsDraft
+                : null;
+            var sizeBucket = action.SubjectType == GitHubSubjectType.PullRequest &&
+                payload?.PullRequest is { Additions: { } additions, Deletions: { } deletions }
+                ? ActionSizeBucketClassifier.Classify(additions, deletions)
+                : action.SizeBucket;
+
+            action.UpdateSubjectMetadata(
+                labels,
+                isDraft,
+                sizeBucket,
+                milestone,
+                // CODEOWNERS-driven review requests are not yet parsed; see issue #32 follow-up.
+                action.RequestedViaCodeowners);
         }
     }
 
