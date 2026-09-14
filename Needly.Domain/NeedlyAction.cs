@@ -98,6 +98,23 @@ public sealed class NeedlyAction
     /// </summary>
     public bool RequestedViaCodeowners { get; private set; }
 
+    // Schema version 3 review risk facts (issue #34). Kept as a separate block, appended after the
+    // schema version 2 filter facts above, to avoid reformatting or reordering existing members.
+    // Issue #35 (agent-authored PR detection), running concurrently in another branch, also extends
+    // this class with its own schema version 3 facts; each addition is a clearly separated, minimal,
+    // appended block so both are easy to merge.
+    /// <summary>
+    /// Gets the pull request's overall review risk level, or null when not applicable (the subject is
+    /// an issue) or not yet computed.
+    /// </summary>
+    public ReviewRiskLevel? ReviewRiskLevel { get; private set; }
+
+    /// <summary>
+    /// Gets the risk signal names that produced <see cref="ReviewRiskLevel"/> (for example
+    /// "authentication", "database migration"). Never populated without a level.
+    /// </summary>
+    public string[] ReviewRiskSignals { get; private set; } = [];
+
     /// <summary>
     /// Creates an action assigned to a GitHub user.
     /// </summary>
@@ -373,6 +390,22 @@ public sealed class NeedlyAction
         SizeBucket = sizeBucket;
         Milestone = DomainGuard.Optional(milestone, 200, nameof(milestone));
         RequestedViaCodeowners = requestedViaCodeowners;
+    }
+
+    /// <summary>
+    /// Updates the review risk classification added for schema version 3 (issue #34) and used by
+    /// Saved Views and Rules. Pass through the action's current values when an event did not recompute
+    /// risk, so unrelated events do not clobber a previously computed classification.
+    /// </summary>
+    /// <param name="level">
+    /// The overall review risk level, or null when not applicable (the subject is an issue) or not yet
+    /// computed.
+    /// </param>
+    /// <param name="matchedSignals">The matched risk signal names backing <paramref name="level"/>.</param>
+    public void UpdateReviewRisk(ReviewRiskLevel? level, string[] matchedSignals)
+    {
+        ReviewRiskLevel = level;
+        ReviewRiskSignals = level is null ? [] : DomainGuard.Labels(matchedSignals, nameof(matchedSignals));
     }
 
     private static NeedlyAction Create(

@@ -89,6 +89,29 @@ public interface IGitHubApiClientFactory
         CancellationToken cancellationToken);
     }
 
+// Added for issue #34 (review risk classification), as a small dedicated interface rather than a new
+// method on IGitHubPullRequestLookup above, so that interface's existing fakes in unrelated detector
+// tests do not need to change.
+/// <summary>Loads changed file paths for a pull request through an installation-authenticated GitHub API call.</summary>
+public interface IGitHubPullRequestFileLookup
+{
+    /// <summary>
+    /// Gets the pull request's changed file paths, or null when they could not be determined (the pull
+    /// request was not found, or the lookup failed). A null result must degrade review risk to
+    /// <see cref="Needly.Domain.ReviewRiskLevel.Unknown"/>, never to Low.
+    /// </summary>
+    /// <remarks>
+    /// Reads only the first REST results page (100 files). Pull requests with more changed files than
+    /// that are not fully represented; see docs/github-app.md.
+    /// </remarks>
+    Task<IReadOnlyList<string>?> GetChangedFilePathsAsync(
+        long gitHubInstallationId,
+        string repositoryOwner,
+        string repositoryName,
+        int pullRequestNumber,
+        CancellationToken cancellationToken);
+}
+
 /// <summary>Authenticates and durably accepts GitHub webhook deliveries.</summary>
 public interface IGitHubWebhookIngestionService
 {

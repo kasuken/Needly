@@ -1,6 +1,6 @@
 # Saved Views and Rules
 
-Saved Views and automation Rules share the same `ActionFilter` matcher. A filter can select action types, states, repositories, organizations, authors, assignment scope, minimum waiting time, bot involvement, labels, pull request draft state, pull request size, milestone, and whether the review was requested through CODEOWNERS.
+Saved Views and automation Rules share the same `ActionFilter` matcher. A filter can select action types, states, repositories, organizations, authors, assignment scope, minimum waiting time, bot involvement, labels, pull request draft state, pull request size, milestone, whether the review was requested through CODEOWNERS, and pull request review risk level.
 
 ## Filter semantics
 
@@ -27,6 +27,15 @@ Saved Views and automation Rules share the same `ActionFilter` matcher. A filter
 - `requestedViaCodeowners` is `Any`, `OnlyRequested`, or `ExcludeRequested`. CODEOWNERS parsing is not
   yet implemented (tracked as a follow-up to issue #32), so this fact is currently always `false` for
   every action; only `Any` and `ExcludeRequested` are useful until then.
+
+### Schema version 3 criteria (issue #34)
+
+- `riskLevels` accepts `Unknown`, `Low`, `Medium`, or `High` — a pull request's overall review risk
+  level, derived from changed file paths and diff size; see [docs/github-app.md](github-app.md) for the
+  default signal-to-level mapping. Multiple values use OR semantics. An action whose risk is not yet
+  known (issues, or pull requests review risk has not been computed for) never matches a non-empty
+  `riskLevels` list — including a list that explicitly names `Unknown`, since that still requires a
+  computed-but-unavailable classification rather than the complete absence of one.
 
 Filters are persisted as structured, versioned JSON. Version 1 has this shape:
 
@@ -65,13 +74,40 @@ Version 2 adds the criteria above:
 }
 ```
 
-The serializer accepts both schema versions 1 and 2. A version 1 document deserializes with every
-version 2 criterion defaulted to "no constraint" (empty arrays, `Any` enum members), and the resulting
-in-memory filter is stamped with the current schema version; re-saving it (for example, editing and
-updating the view or rule) upgrades its stored JSON to version 2. The serializer rejects malformed
-JSON, unsupported schema versions or enum values, null collections, empty names, and non-positive
-waiting thresholds. It trims names, removes case-insensitive duplicates, and stores option arrays in
-deterministic order.
+Version 3 adds `riskLevels`:
+
+```json
+{
+  "schemaVersion": 3,
+  "types": ["Review", "Fix"],
+  "states": ["Open"],
+  "repositories": ["octo-org/needly"],
+  "organizations": ["octo-org"],
+  "authors": ["octocat"],
+  "assigneeScope": "Me",
+  "waitingAtLeast": "1.00:00:00",
+  "botInvolvement": "ExcludeBots",
+  "labels": ["bug"],
+  "isDraft": "ExcludeDrafts",
+  "sizeBuckets": ["S", "M"],
+  "milestones": ["v2"],
+  "requestedViaCodeowners": "Any",
+  "riskLevels": ["High"]
+}
+```
+
+The serializer accepts schema versions 1 through 3. A version 1 or 2 document deserializes with every
+criterion newer than its own version defaulted to "no constraint" (empty arrays, `Any` enum members),
+and the resulting in-memory filter is stamped with the current schema version; re-saving it (for
+example, editing and updating the view or rule) upgrades its stored JSON to the current version. The
+serializer rejects malformed JSON, unsupported schema versions or enum values, null collections, empty
+names, and non-positive waiting thresholds. It trims names, removes case-insensitive duplicates, and
+stores option arrays in deterministic order.
+
+Issue #35 (agent-authored PR detection), developed concurrently in another branch, also bumps the
+schema to version 3 and appends its own criterion. Both additions land as separate, minimal,
+clearly-commented blocks in `ActionFilter.cs` and `ActionFilterJsonSerializer.cs` so merging the two
+branches is a straightforward combination rather than a conflict to resolve line by line.
 
 ## Saved Views
 

@@ -90,6 +90,11 @@ public static class ServiceCollectionExtensions
             .Validate(
                 options => options.Labels.Count > 0,
                 "Decide:Labels must contain at least one label.");
+        services.AddScoped<IReviewRiskClassifier, ReviewRiskClassifier>();
+        services.AddOptions<ReviewRiskOptions>()
+            .Validate(
+                options => options.LargeDiffChangedLines > 0,
+                "ReviewRisk:LargeDiffChangedLines must be positive.");
         services.AddScoped<IGitHubWebhookIngestionService, GitHubWebhookIngestionService>();
         services.AddOptions<GitHubActionOptions>()
             .Validate(
@@ -132,6 +137,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGitHubInstallationTokenProvider, GitHubInstallationTokenProvider>();
         services.AddScoped<IGitHubApiClientFactory, GitHubApiClientFactory>();
         services.AddScoped<IGitHubPullRequestLookup, GitHubPullRequestLookup>();
+        services.AddScoped<IGitHubPullRequestFileLookup, GitHubPullRequestFileLookup>();
         services.AddHttpClient<GitHubInstallationTokenClient>(ConfigureGitHubClient);
         services.AddHttpClient(GitHubApiClientFactory.ClientName, ConfigureGitHubClient);
         return services;

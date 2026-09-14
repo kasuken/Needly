@@ -21,7 +21,8 @@ public sealed class ActionFilterMatcherTests
         RequestedViaCodeowners: true,
         Title: "Add retry logic to the webhook dispatcher",
         Reason: "Review requested on pull request #42",
-        Context: "Blocked on CI failures in the auth middleware");
+        Context: "Blocked on CI failures in the auth middleware",
+        RiskLevel: ReviewRiskLevel.High);
 
     [Fact]
     public void IsMatch_EmptyFilter_MatchesAnyCandidate()
@@ -163,7 +164,8 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { SizeBuckets = [ActionSizeBucket.M] },
         new ActionFilter { Milestones = ["V2"] },
         new ActionFilter { RequestedViaCodeowners = CodeownersFilter.OnlyRequested },
-        new ActionFilter { FreeText = "retry logic" }
+        new ActionFilter { FreeText = "retry logic" },
+        new ActionFilter { RiskLevels = [ReviewRiskLevel.High] }
     };
 
     public static TheoryData<ActionFilter> MismatchedCriterionFilters => new()
@@ -181,8 +183,23 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { SizeBuckets = [ActionSizeBucket.XL] },
         new ActionFilter { Milestones = ["v3"] },
         new ActionFilter { RequestedViaCodeowners = CodeownersFilter.ExcludeRequested },
-        new ActionFilter { FreeText = "does not appear anywhere" }
+        new ActionFilter { FreeText = "does not appear anywhere" },
+        new ActionFilter { RiskLevels = [ReviewRiskLevel.Low] }
     };
+
+    // Schema version 3 additions (issue #34).
+    [Fact]
+    public void IsMatch_RiskLevels_UseOrSemanticsAndRequireAKnownLevel()
+    {
+        var unknownRiskCandidate = Candidate with { RiskLevel = null };
+
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { RiskLevels = [ReviewRiskLevel.High] }, Candidate));
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { RiskLevels = [ReviewRiskLevel.Low, ReviewRiskLevel.High] }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(new ActionFilter { RiskLevels = [ReviewRiskLevel.Medium] }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(
+            new ActionFilter { RiskLevels = [ReviewRiskLevel.High] }, unknownRiskCandidate));
+    }
 
     [Theory]
     [InlineData("retry logic")]

@@ -32,7 +32,7 @@ internal static class ActionFilterJsonSerializer
     private static ActionFilter Normalize(ActionFilter filter)
     {
         ArgumentNullException.ThrowIfNull(filter);
-        if (filter.SchemaVersion is not (1 or ActionFilter.CurrentSchemaVersion))
+        if (filter.SchemaVersion is not (1 or 2 or ActionFilter.CurrentSchemaVersion))
         {
             throw new InvalidDataException(
                 $"Action filter schema version {filter.SchemaVersion} is not supported.");
@@ -63,6 +63,17 @@ internal static class ActionFilterJsonSerializer
             throw new InvalidDataException("The waiting threshold must be positive.");
         }
 
+        // Schema version 3 additions (issue #34). Versions 1 and 2 predate the RiskLevels criterion;
+        // their JSON never contains it, so the deserializer already defaults it to "no constraint"
+        // (an empty array). Issue #35, running concurrently, also bumps to schema version 3 and
+        // upgrades its own new field here in the same way.
+        var isPreVersion3 = filter.SchemaVersion is 1 or 2;
+        var riskLevels = Required(filter.RiskLevels, nameof(filter.RiskLevels));
+        if (riskLevels.Any(level => !Enum.IsDefined(level)))
+        {
+            throw new InvalidDataException("The action filter contains an unsupported option.");
+        }
+
         return filter with
         {
             SchemaVersion = ActionFilter.CurrentSchemaVersion,
@@ -73,7 +84,8 @@ internal static class ActionFilterJsonSerializer
             Authors = NormalizeNames(filter.Authors, nameof(filter.Authors)),
             Labels = isLegacyVersion1 ? [] : NormalizeNames(filter.Labels, nameof(filter.Labels)),
             SizeBuckets = isLegacyVersion1 ? [] : sizeBuckets.Distinct().Order().ToArray(),
-            Milestones = isLegacyVersion1 ? [] : NormalizeNames(filter.Milestones, nameof(filter.Milestones))
+            Milestones = isLegacyVersion1 ? [] : NormalizeNames(filter.Milestones, nameof(filter.Milestones)),
+            RiskLevels = isPreVersion3 ? [] : riskLevels.Distinct().Order().ToArray()
         };
     }
 

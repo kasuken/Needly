@@ -44,6 +44,27 @@ The REST lookup currently reads the first 100 reviews, commit statuses, and chec
 
 Issue comments and pull request review comments use exact GitHub `@login` tokens and case-insensitive matching against stored installation users. Mentions and comments on a stored user's own subject roll into one durable Respond action per subject and assignee, with a running activity count. A user's later comment resolves their Respond action; same-time or older activity does not. Bot-authored comments and conventional `[bot]` accounts are ignored. Closing the issue or pull request resolves its Respond actions.
 
+### Review risk classification
+
+Needly classifies each pull request action by review risk — never code quality or correctness, only "a human should look carefully here" — from its changed file paths and diff size. Risk is deterministic and configurable: `ReviewRiskOptions` (bound from the `ReviewRisk` configuration section) holds an ordered list of named signals, each a review risk level plus a list of glob path patterns (`**`, `*`, `?`), evaluated independently and combined by OR. The overall level is the highest level among every matched signal, and the matched signal names are always stored and shown alongside it — never just the level.
+
+The default signal-to-level mapping:
+
+| Level | Signals |
+| --- | --- |
+| High | authentication, authorization, database migration, billing, infrastructure (the issue's "Medium-High" tier is folded into High here, to keep a simple four-level scale — infrastructure changes still deserve careful review) |
+| Medium | CI/CD configuration, public API, large diff (`ReviewRisk:LargeDiffChangedLines`, default 500 changed lines) |
+| Low | generated files, documentation, tests only (every changed file matches a configured test path pattern) |
+| Unknown | the changed-file list could not be fetched |
+
+A pull request with no matched signal is Low with no listed signals, distinct from Unknown.
+
+Risk is recomputed from the GitHub REST changed-files endpoint (`GET /repos/{owner}/{repo}/pulls/{number}/files`) only for `opened` and `synchronize` pull request events — the events that introduce new commits — and only for actions the event actually touches; other events pass through the previously computed level and signals unchanged, the same pattern already used for labels, milestone, draft state, and size bucket. **The lookup reads only the first REST results page (100 files)**, the same limitation this project already documents for merge-readiness reviews, statuses, and check runs above; a pull request with more than 100 changed files is not fully represented in the signal matching.
+
+Fetching the changed-file list can fail (rate limiting, a transient HTTP error, or a malformed response). Review risk explicitly **degrades to Unknown, never silently to Low**, when that happens — the failure is logged and swallowed rather than failing the webhook transaction, so an intermittent GitHub API problem never blocks unrelated action processing. Risk is not applicable to issues (it stays null) and is not backfilled for pull requests created by the historical bootstrap importer; it starts populating from the next `opened` or `synchronize` webhook.
+
+`ReviewRisk:LargeDiffChangedLines` defaults to `500` and must be positive.
+
 ## Permissions and events
 
 Configure read-only access unless GitHub requires `metadata: read` automatically:
@@ -106,6 +127,7 @@ The non-secret processing settings have defaults in `appsettings.json` and can b
 | `ActionRisk:ReviewWaitingThreshold` | `08:00:00` | Review actions become at risk only after waiting more than eight hours. |
 | `ActionRisk:InactivityThreshold` | `3.00:00:00` | Any open action becomes at risk only after more than three days without activity. |
 | `ActionRisk:EvaluationInterval` | `00:15:00` | Period between open-action risk evaluations. |
+| `ReviewRisk:LargeDiffChangedLines` | `500` | Total changed lines (additions plus deletions) that trigger the "large diff" Medium review risk signal. |
 
 Do not add a private key, client secret, webhook secret, or user-secrets file to source control. Use a secret manager in production and expose the same hierarchy with configuration-provider-specific names. Environment-variable providers use double underscores, for example `GitHubApp__ClientSecret`, `GitHubApp__PrivateKey`, and `GitHubApp__WebhookSecret`.
 

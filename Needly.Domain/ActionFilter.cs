@@ -73,6 +73,31 @@ public enum ActionSizeBucket
     XL
 }
 
+// Schema version 3 additions (issue #34). Kept as a separate block, appended after the schema
+// version 2 members above, to avoid reformatting or reordering existing code. Issue #35
+// (agent-authored PR detection), running concurrently in another branch, also bumps to schema
+// version 3 and appends its own additions; each addition is a clearly separated, minimal, appended
+// block so both are easy to merge.
+/// <summary>
+/// Classifies how carefully a pull request's changes should be reviewed, derived from changed file
+/// paths and diff shape rather than code quality or correctness. Ordered from least to most review
+/// attention so the overall level can be computed as the highest matched signal's level.
+/// </summary>
+public enum ReviewRiskLevel
+{
+    /// <summary>The changed file list could not be determined (for example, a failed GitHub API call).</summary>
+    Unknown,
+
+    /// <summary>Only low-attention signals matched (for example, documentation or generated files).</summary>
+    Low,
+
+    /// <summary>A medium-attention signal matched (for example, CI/CD configuration or a large diff).</summary>
+    Medium,
+
+    /// <summary>A high-attention signal matched (for example, authentication or a database migration).</summary>
+    High
+}
+
 /// <summary>Classifies pull requests into an <see cref="ActionSizeBucket"/> by changed line count.</summary>
 public static class ActionSizeBucketClassifier
 {
@@ -104,7 +129,7 @@ public static class ActionSizeBucketClassifier
 public sealed record ActionFilter
 {
     /// <summary>Gets the current serialized filter schema version.</summary>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>Gets the serialized filter schema version.</summary>
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
@@ -159,6 +184,12 @@ public sealed record ActionFilter
     /// <see cref="ActionFilterCandidate.Context"/>) by <see cref="ActionFilterMatcher"/>.
     /// </remarks>
     public string? FreeText { get; init; }
+
+    // Schema version 3 additions (issue #34). Kept as a separate block, appended after the version 2
+    // criteria above, to avoid reformatting or reordering existing members. Issue #35, running
+    // concurrently, also bumps to schema version 3 and appends its own criteria here.
+    /// <summary>Gets the accepted review risk levels, or an empty collection for any level.</summary>
+    public ReviewRiskLevel[] RiskLevels { get; init; } = [];
 }
 
 /// <summary>Contains the action and viewer facts consumed by <see cref="ActionFilterMatcher"/>.</summary>
@@ -178,6 +209,10 @@ public sealed record ActionFilter
 /// <param name="Title">The subject title, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
 /// <param name="Reason">The action reason text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
 /// <param name="Context">Additional context text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
+/// <param name="RiskLevel">
+/// The pull request's overall review risk level, or null when not applicable (an issue) or not yet
+/// computed. Added for issue #34.
+/// </param>
 public sealed record ActionFilterCandidate(
     ActionType Type,
     ActionState State,
@@ -194,7 +229,9 @@ public sealed record ActionFilterCandidate(
     bool RequestedViaCodeowners,
     string? Title = null,
     string? Reason = null,
-    string? Context = null);
+    string? Context = null,
+    // Schema version 3 addition (issue #34).
+    ReviewRiskLevel? RiskLevel = null);
 
 /// <summary>Applies the shared saved-view and rule filter semantics to action facts.</summary>
 public static class ActionFilterMatcher
@@ -243,7 +280,12 @@ public static class ActionFilterMatcher
                 _ => false
             } &&
             // Added for issue #24 (inbox search).
-            MatchesFreeText(filter.FreeText, candidate);
+            MatchesFreeText(filter.FreeText, candidate) &&
+            // Schema version 3 additions (issue #34). Kept as a separate block, appended after the
+            // version 2 criteria and the issue #24 free-text criterion above, to avoid reformatting or
+            // reordering existing logic.
+            (filter.RiskLevels.Length == 0 ||
+                (candidate.RiskLevel is { } riskLevel && filter.RiskLevels.Contains(riskLevel)));
     }
 
     private static bool Contains<T>(IReadOnlyCollection<T> accepted, T value)
