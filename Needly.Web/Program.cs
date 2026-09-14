@@ -33,6 +33,12 @@ builder.Services.AddOptions<GitHubHistoricalBootstrapOptions>()
 builder.Services.AddOptions<ActionRiskOptions>()
     .Bind(builder.Configuration.GetSection(ActionRiskOptions.SectionName))
     .ValidateOnStart();
+builder.Services.AddOptions<FollowUpOptions>()
+    .Bind(builder.Configuration.GetSection(FollowUpOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddOptions<DecideOptions>()
+    .Bind(builder.Configuration.GetSection(DecideOptions.SectionName))
+    .ValidateOnStart();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<SavedViewNavigationState>();
 builder.Services.AddHealthChecks()
