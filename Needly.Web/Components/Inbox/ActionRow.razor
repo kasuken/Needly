@@ -3,6 +3,16 @@
          data-action-id="@Action.ActionId"
          tabindex="-1"
          aria-current="@(Selected ? "true" : null)">
+    @if (SelectionEnabled)
+    {
+        <div class="action-row-select" @onclick:stopPropagation="true">
+            <MudCheckBox T="bool"
+                         Value="@IsChecked"
+                         ValueChanged="OnCheckedChangedAsync"
+                         aria-label="@($"Select {Action.RepositoryOwner}/{Action.RepositoryName} #{Action.SubjectNumber}")"/>
+        </div>
+    }
+
     <div class="action-row-main">
         <div class="action-row-heading">
             <MudIcon Icon="@ActionIcon" Size="Size.Small" Class="action-type-icon"/>
@@ -10,6 +20,12 @@
                 @Action.RepositoryOwner/@Action.RepositoryName
                 <span class="action-subject">@SubjectLabel #@Action.SubjectNumber</span>
             </MudText>
+            @if (Action.IsPinned)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Tertiary" Variant="Variant.Outlined" Icon="@Icons.Material.Outlined.PushPin">
+                    Pinned
+                </MudChip>
+            }
             @if (Action.IsAtRisk)
             {
                 <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
@@ -46,6 +62,11 @@
                  Size="Size.Small"
                  Dense="true"
                  AriaLabel="Action options">
+            <MudMenuItem Icon="@(Action.IsPinned ? Icons.Material.Filled.PushPin : Icons.Material.Outlined.PushPin)"
+                         OnClick="TogglePinAsync">
+                @(Action.IsPinned ? "Unpin" : "Pin")
+            </MudMenuItem>
+            <MudDivider/>
             <MudMenuItem Icon="@Icons.Material.Outlined.Archive"
                          OnClick="ArchiveAsync">
                 Archive

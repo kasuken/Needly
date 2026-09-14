@@ -24,6 +24,13 @@ public interface IActionLifecycleService
         Guid actionId,
         CancellationToken cancellationToken);
 
+    /// <summary>Sets or clears a manual pin for a visible action, independent of automation rules.</summary>
+    Task<bool> SetPinnedAsync(
+        Guid needlyUserId,
+        Guid actionId,
+        bool isPinned,
+        CancellationToken cancellationToken);
+
     /// <summary>Restores the persisted action state captured by a lifecycle change.</summary>
     Task<bool> UndoAsync(
         Guid needlyUserId,

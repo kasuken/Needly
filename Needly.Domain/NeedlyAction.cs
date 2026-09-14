@@ -78,6 +78,26 @@ public sealed class NeedlyAction
     /// <summary>Gets whether the subject author or triggering activity involved a bot.</summary>
     public bool HasBotInvolvement { get; private set; }
 
+    // Schema version 2 filter facts (issue #32). Kept as a separate block, appended after the
+    // existing filter-metadata members above, to avoid reformatting or reordering existing code.
+    /// <summary>Gets the GitHub label names on the subject.</summary>
+    public string[] Labels { get; private set; } = [];
+
+    /// <summary>Gets whether the subject pull request is a draft, or null when not applicable or unknown.</summary>
+    public bool? IsDraft { get; private set; }
+
+    /// <summary>Gets the pull request size bucket derived from changed lines, or null when not applicable or unknown.</summary>
+    public ActionSizeBucket? SizeBucket { get; private set; }
+
+    /// <summary>Gets the subject milestone title, when known.</summary>
+    public string? Milestone { get; private set; }
+
+    /// <summary>
+    /// Gets whether the review was requested through a CODEOWNERS entry. Always <see langword="false"/>
+    /// until CODEOWNERS parsing is implemented.
+    /// </summary>
+    public bool RequestedViaCodeowners { get; private set; }
+
     /// <summary>
     /// Creates an action assigned to a GitHub user.
     /// </summary>
@@ -329,6 +349,30 @@ public sealed class NeedlyAction
     {
         AuthorLogin = DomainGuard.Optional(authorLogin, 100, nameof(authorLogin));
         HasBotInvolvement = hasBotInvolvement;
+    }
+
+    /// <summary>
+    /// Updates the persistence-neutral subject facts added for schema version 2 (issue #32) and used
+    /// by Saved Views and Rules. Pass through the action's current values for facts an event's payload
+    /// does not carry, so unrelated events do not clobber previously learned facts.
+    /// </summary>
+    /// <param name="labels">The GitHub label names on the subject.</param>
+    /// <param name="isDraft">Whether the subject pull request is a draft, or null when not applicable or unknown.</param>
+    /// <param name="sizeBucket">The pull request size bucket, or null when not applicable or unknown.</param>
+    /// <param name="milestone">The subject milestone title, when known.</param>
+    /// <param name="requestedViaCodeowners">Whether the review was requested through CODEOWNERS.</param>
+    public void UpdateSubjectMetadata(
+        string[] labels,
+        bool? isDraft,
+        ActionSizeBucket? sizeBucket,
+        string? milestone,
+        bool requestedViaCodeowners)
+    {
+        Labels = DomainGuard.Labels(labels, nameof(labels));
+        IsDraft = isDraft;
+        SizeBucket = sizeBucket;
+        Milestone = DomainGuard.Optional(milestone, 200, nameof(milestone));
+        RequestedViaCodeowners = requestedViaCodeowners;
     }
 
     private static NeedlyAction Create(

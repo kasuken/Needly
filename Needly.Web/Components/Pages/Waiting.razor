@@ -1,0 +1,63 @@
+@page "/waiting"
+@attribute [Authorize]
+@using Needly.Web.Components.Waiting
+
+<PageTitle>Waiting on others · Needly</PageTitle>
+
+<div class="waiting-page">
+    <header class="waiting-header">
+        <div>
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="page-kicker">Waiting on others</MudText>
+            <MudText Typo="Typo.h1" HtmlTag="h1">@Summary</MudText>
+            <MudText Typo="Typo.body1" Class="page-description">
+                Your own open pull requests that are blocked on somebody else.
+            </MudText>
+        </div>
+    </header>
+
+    <MudDivider/>
+
+    @if (_loading)
+    {
+        <section class="waiting-loading" aria-label="Loading waiting on others">
+            @for (var index = 0; index < 3; index++)
+            {
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="128px" Class="waiting-skeleton"/>
+            }
+        </section>
+    }
+    else if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="waiting-error">
+            <div class="waiting-error-content">
+                <span>We couldn't load your waiting queue. Try again.</span>
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Error"
+                           StartIcon="@Icons.Material.Outlined.Refresh"
+                           OnClick="RetryAsync">
+                    Retry
+                </MudButton>
+            </div>
+        </MudAlert>
+    }
+    else if (_items.Count == 0)
+    {
+        <section class="empty-state" aria-labelledby="waiting-empty-title">
+            <div class="empty-state-icon" aria-hidden="true">
+                <MudIcon Icon="@Icons.Material.Outlined.DoneAll" Size="Size.Large"/>
+            </div>
+            <MudText Typo="Typo.h5" HtmlTag="h2" id="waiting-empty-title">
+                Nothing is waiting on anyone else
+            </MudText>
+        </section>
+    }
+    else
+    {
+        <div class="waiting-groups">
+            @foreach (var group in Groups)
+            {
+                <WaitingGroup @key="group.Title" Title="@group.Title" Items="@group.Items"/>
+            }
+        </div>
+    }
+</div>

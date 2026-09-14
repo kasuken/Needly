@@ -60,9 +60,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGitHubOrganizationMembershipService, GitHubOrganizationMembershipService>();
         services.AddScoped<ITeamReviewResolver, TeamReviewResolver>();
         services.AddScoped<IInboxVisibilityService, InboxVisibilityService>();
+        services.AddScoped<IWaitingOnOthersService, WaitingOnOthersService>();
         services.AddScoped<IActionLifecycleService, ActionLifecycleService>();
         services.AddScoped<IActionSnoozeService, ActionSnoozeService>();
         services.AddScoped<IActionRiskEvaluator, ActionRiskEvaluator>();
+        services.AddScoped<IFollowUpEvaluator, FollowUpEvaluator>();
         services.AddScoped<ISavedViewService, SavedViewService>();
         services.AddScoped<IDoneActionsService, DoneActionsService>();
         services.AddScoped<IAutomationRuleService, AutomationRuleService>();
@@ -77,6 +79,17 @@ public static class ServiceCollectionExtensions
             .Validate(
                 options => options.EvaluationInterval > TimeSpan.Zero,
                 "ActionRisk:EvaluationInterval must be positive.");
+        services.AddOptions<FollowUpOptions>()
+            .Validate(
+                options => options.StaleFeedbackThreshold > TimeSpan.Zero,
+                "FollowUp:StaleFeedbackThreshold must be positive.")
+            .Validate(
+                options => options.EvaluationInterval > TimeSpan.Zero,
+                "FollowUp:EvaluationInterval must be positive.");
+        services.AddOptions<DecideOptions>()
+            .Validate(
+                options => options.Labels.Count > 0,
+                "Decide:Labels must contain at least one label.");
         services.AddScoped<IGitHubWebhookIngestionService, GitHubWebhookIngestionService>();
         services.AddOptions<GitHubActionOptions>()
             .Validate(
@@ -92,6 +105,12 @@ public static class ServiceCollectionExtensions
             ServiceDescriptor.Scoped<IGitHubActionDetector, RespondActionDetector>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IGitHubActionDetector, MergeReadyActionDetector>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IGitHubActionDetector, DecideActionDetector>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IGitHubActionDetector, FollowUpActionDetector>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IGitHubActionDetector, MonitorActionDetector>());
         services.TryAddScoped<IGitHubActionEventHandler, GitHubActionEventHandler>();
         services.AddScoped<IGitHubWebhookDispatcher, GitHubWebhookDispatcher>();
         services.AddScoped<IGitHubWebhookRecoveryService, GitHubWebhookRecoveryService>();
@@ -126,6 +145,7 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<GitHubHistoricalBootstrapBackgroundService>();
         services.AddHostedService<ActionRiskBackgroundService>();
         services.AddHostedService<ActionSnoozeBackgroundService>();
+        services.AddHostedService<FollowUpBackgroundService>();
         return services;
     }
 

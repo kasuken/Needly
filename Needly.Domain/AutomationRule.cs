@@ -235,6 +235,14 @@ public sealed class ActionDisposition
 
         UpdatedAt = timestamp;
     }
+
+    /// <summary>Sets or clears a manual pin independent of rule evaluation.</summary>
+    public void SetPinned(bool isPinned, DateTimeOffset updatedAt)
+    {
+        var timestamp = DomainGuard.NotBefore(updatedAt, CreatedAt, nameof(updatedAt));
+        IsPinned = isPinned;
+        UpdatedAt = timestamp;
+    }
 }
 
 /// <summary>Records one durable, idempotent rule effect applied to an action.</summary>

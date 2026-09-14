@@ -1,0 +1,53 @@
+.waiting-page {
+    display: grid;
+    width: 100%;
+    gap: 1.5rem;
+}
+
+.waiting-header {
+    display: flex;
+    min-height: 4.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.waiting-loading,
+.waiting-groups {
+    display: grid;
+    gap: 2rem;
+}
+
+.waiting-loading {
+    gap: 0.65rem;
+}
+
+.waiting-skeleton {
+    border-radius: 6px;
+}
+
+.waiting-error {
+    margin-top: 0.25rem;
+}
+
+.waiting-error-content {
+    display: flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+@media (max-width: 599.98px) {
+    .waiting-header {
+        min-height: 4rem;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .waiting-error-content {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

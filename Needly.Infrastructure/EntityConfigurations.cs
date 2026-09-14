@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Needly.Domain;
 using Needly.Infrastructure.GitHub;
@@ -179,6 +181,20 @@ internal sealed class NeedlyActionConfiguration : IEntityTypeConfiguration<Needl
         builder.Property(action => action.Reason).HasMaxLength(1000).IsRequired();
         builder.Property(action => action.RiskReason).HasMaxLength(1000);
         builder.Property(action => action.AuthorLogin).HasMaxLength(100);
+
+        // Schema version 2 filter facts (issue #32).
+        var labelsComparer = new ValueComparer<string[]>(
+            (left, right) => (left ?? Array.Empty<string>()).SequenceEqual(right ?? Array.Empty<string>()),
+            value => value.Aggregate(0, (hash, label) => HashCode.Combine(hash, label.GetHashCode())),
+            value => value.ToArray());
+        builder.Property(action => action.Labels)
+            .HasConversion(
+                value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
+                value => JsonSerializer.Deserialize<string[]>(value, (JsonSerializerOptions?)null) ?? Array.Empty<string>(),
+                labelsComparer)
+            .HasMaxLength(2000)
+            .IsRequired();
+        builder.Property(action => action.Milestone).HasMaxLength(200);
 
         builder.HasIndex(action => action.Key)
             .HasFilter(ActiveActionFilter)
