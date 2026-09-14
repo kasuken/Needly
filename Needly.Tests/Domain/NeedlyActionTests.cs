@@ -178,6 +178,30 @@ public sealed class NeedlyActionTests
         Assert.Equal(TestData.CreatedAt.AddHours(1), action.UpdatedAt);
     }
 
+    // Schema version 3 review risk facts (issue #34).
+    [Fact]
+    public void UpdateReviewRisk_KnownLevel_StoresLevelAndMatchedSignals()
+    {
+        var action = TestData.CreateAction();
+
+        action.UpdateReviewRisk(ReviewRiskLevel.High, ["authentication", "database migration"]);
+
+        Assert.Equal(ReviewRiskLevel.High, action.ReviewRiskLevel);
+        Assert.Equal(["authentication", "database migration"], action.ReviewRiskSignals);
+    }
+
+    [Fact]
+    public void UpdateReviewRisk_NullLevel_ClearsMatchedSignals()
+    {
+        var action = TestData.CreateAction();
+        action.UpdateReviewRisk(ReviewRiskLevel.Medium, ["large diff"]);
+
+        action.UpdateReviewRisk(null, []);
+
+        Assert.Null(action.ReviewRiskLevel);
+        Assert.Empty(action.ReviewRiskSignals);
+    }
+
     // Schema version 3 additions (issue #35).
     [Fact]
     public void UpdateAgentAuthor_KnownAgent_PersistsKeyAndDisplayName()

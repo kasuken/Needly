@@ -14,7 +14,12 @@ public sealed class GitHubActionEventHandler(
     ILogger<GitHubActionEventHandler> logger,
     IActionChangeBroadcaster? broadcaster = null,
     AutomationRuleEvaluator? ruleEvaluator = null,
-    AgentClassifier? agentClassifier = null)
+    AgentClassifier? agentClassifier = null,
+    // Added for issue #34 (review risk classification). Optional and appended last so existing
+    // positional constructor calls in tests keep compiling; a null lookup or classifier simply leaves
+    // review risk uncomputed (pass-through), the same as any other event that carries no fresh data.
+    IGitHubPullRequestFileLookup? pullRequestFileLookup = null,
+    IReviewRiskClassifier? reviewRiskClassifier = null)
     : IGitHubActionEventHandler
 {
     private readonly IReadOnlyList<IGitHubActionDetector> detectors = OrderDetectors(detectors);
@@ -221,7 +226,8 @@ public sealed class GitHubActionEventHandler(
         if (changedActions.Length > 0)
         {
             await ApplyFilterMetadataAsync(
-                dbContext, storedEvent, changedActions, cancellationToken).ConfigureAwait(false);
+                dbContext, storedEvent, changedActions, installation, repository, cancellationToken)
+                .ConfigureAwait(false);
             if (ruleEvaluator is not null)
             {
                 await ruleEvaluator.EvaluateAsync(
@@ -236,6 +242,8 @@ public sealed class GitHubActionEventHandler(
         NeedlyDbContext dbContext,
         GitHubStoredEvent storedEvent,
         IReadOnlyList<NeedlyAction> actions,
+        Installation installation,
+        Repository repository,
         CancellationToken cancellationToken)
     {
         var payload = System.Text.Json.JsonSerializer.Deserialize<GitHubActionWebhookPayload>(
@@ -248,6 +256,14 @@ public sealed class GitHubActionEventHandler(
         // state, and diff size can be read directly from it in that same branch.
         var payloadLabels = payload?.PullRequest?.Labels ?? payload?.Issue?.Labels;
         var payloadMilestone = payload?.PullRequest?.Milestone ?? payload?.Issue?.Milestone;
+
+        // Schema version 3 review risk (issue #34). Recomputed once per event, from the changed-file
+        // list, only when this event may have introduced new commits (opened or synchronize) and the
+        // payload actually carries a pull_request object. All changed actions for one event describe
+        // the same subject, so one fetch and classification is reused for each of them below.
+        var reviewRisk = await ComputeReviewRiskAsync(
+            storedEvent, payload?.PullRequest, installation, repository, cancellationToken)
+            .ConfigureAwait(false);
 
         foreach (var action in actions)
         {
@@ -276,6 +292,8 @@ public sealed class GitHubActionEventHandler(
                     action.SizeBucket,
                     action.Milestone,
                     action.RequestedViaCodeowners);
+                // Same fallback reasoning as above (issue #34): nothing fresher than the stored value.
+                action.UpdateReviewRisk(action.ReviewRiskLevel, action.ReviewRiskSignals);
                 continue;
             }
 
@@ -305,7 +323,46 @@ public sealed class GitHubActionEventHandler(
                 milestone,
                 // CODEOWNERS-driven review requests are not yet parsed; see issue #32 follow-up.
                 action.RequestedViaCodeowners);
+
+            // Schema version 3 review risk (issue #34). Not applicable to issues; falls back to the
+            // stored value when this event did not recompute it (see ComputeReviewRiskAsync above).
+            var reviewRiskLevel = action.SubjectType == GitHubSubjectType.PullRequest
+                ? reviewRisk?.Level ?? action.ReviewRiskLevel
+                : null;
+            var reviewRiskSignals = action.SubjectType == GitHubSubjectType.PullRequest
+                ? reviewRisk?.MatchedSignals ?? action.ReviewRiskSignals
+                : [];
+            action.UpdateReviewRisk(reviewRiskLevel, reviewRiskSignals);
         }
+    }
+
+    /// <summary>
+    /// Fetches the changed-file list and classifies review risk for a pull request event, or returns
+    /// null when this event should not recompute risk (issue #34).
+    /// </summary>
+    private async Task<ReviewRiskClassification?> ComputeReviewRiskAsync(
+        GitHubStoredEvent storedEvent,
+        GitHubPullRequestPayload? pullRequestPayload,
+        Installation installation,
+        Repository repository,
+        CancellationToken cancellationToken)
+    {
+        if (pullRequestPayload is null ||
+            storedEvent.Action is not ("opened" or "synchronize") ||
+            pullRequestFileLookup is null ||
+            reviewRiskClassifier is null)
+        {
+            return null;
+        }
+
+        var changedFilePaths = await pullRequestFileLookup.GetChangedFilePathsAsync(
+            installation.GitHubInstallationId,
+            repository.Owner,
+            repository.Name,
+            pullRequestPayload.Number,
+            cancellationToken).ConfigureAwait(false);
+        return reviewRiskClassifier.Classify(
+            changedFilePaths, pullRequestPayload.Additions, pullRequestPayload.Deletions);
     }
 
     private static bool IsBot(string? login, string? type) =>

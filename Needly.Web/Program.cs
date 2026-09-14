@@ -39,6 +39,9 @@ builder.Services.AddOptions<FollowUpOptions>()
 builder.Services.AddOptions<DecideOptions>()
     .Bind(builder.Configuration.GetSection(DecideOptions.SectionName))
     .ValidateOnStart();
+builder.Services.AddOptions<ReviewRiskOptions>()
+    .Bind(builder.Configuration.GetSection(ReviewRiskOptions.SectionName))
+    .ValidateOnStart();
 builder.Services.AddOptions<AgentDetectionOptions>()
     .Bind(builder.Configuration.GetSection(AgentDetectionOptions.SectionName))
     .ValidateOnStart();

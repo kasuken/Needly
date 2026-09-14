@@ -167,6 +167,7 @@ Run focused tests with the usual xUnit filters, or run the complete suite with `
 - Saved Views and Rules share one versioned `ActionFilter` contract. Read [docs/saved-views-and-rules.md](docs/saved-views-and-rules.md) for filter semantics, effects, ordering, and team behavior.
 - Merge readiness is intentionally conservative: incomplete API snapshots retract a Merge action, and the current REST lookups are limited to the first 100 reviews, statuses, and check runs. Details and caveats are documented in [docs/github-app.md](docs/github-app.md).
 - Resolve action context reports an approximate unresolved review-comment count because GitHub REST webhook payloads do not expose authoritative GraphQL review-thread resolution state.
+- Review risk is deterministic and derived from changed file paths and diff size only, never code quality: it degrades to Unknown, rather than Low, when the changed-file list cannot be fetched, and like merge readiness, the current REST lookup is limited to the first 100 changed files. Configurable signals, the default path-pattern-to-level mapping, and the Unknown fallback are documented in [docs/github-app.md](docs/github-app.md).
 
 ## Documentation
 

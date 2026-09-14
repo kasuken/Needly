@@ -83,7 +83,10 @@ public sealed record VisibleAction(
     bool RequestedViaCodeowners,
     // Schema version 3 additions (issue #35).
     string? AgentAuthor,
-    string? AgentDisplayName);
+    string? AgentDisplayName,
+    // Schema version 3 review risk facts (issue #34).
+    ReviewRiskLevel? ReviewRiskLevel,
+    string[] ReviewRiskSignals);
 
 /// <summary>Creates shared filter candidates from authorized inbox projections.</summary>
 public static class VisibleActionFilterCandidate
@@ -106,7 +109,8 @@ public static class VisibleActionFilterCandidate
             action.SizeBucket,
             action.Milestone,
             action.RequestedViaCodeowners,
-            AgentAuthor: action.AgentAuthor);
+            AgentAuthor: action.AgentAuthor,
+            RiskLevel: action.ReviewRiskLevel);
     }
 }
 

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Needly.Infrastructure;
 
@@ -11,9 +12,11 @@ using Needly.Infrastructure;
 namespace Needly.Infrastructure.Migrations
 {
     [DbContext(typeof(NeedlyDbContext))]
-    partial class NeedlyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914161740_AddReviewRisk")]
+    partial class AddReviewRisk
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -346,14 +349,6 @@ namespace Needly.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AgentAuthor")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("AgentDisplayName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<Guid>("AssigneeId")
                         .HasColumnType("uniqueidentifier");

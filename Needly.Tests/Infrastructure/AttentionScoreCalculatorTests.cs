@@ -36,7 +36,9 @@ public sealed class AttentionScoreCalculatorTests
         Milestone: null,
         AgentAuthor: null,
         AgentDisplayName: null,
-        RequestedViaCodeowners: false);
+        RequestedViaCodeowners: false,
+        ReviewRiskLevel: null,
+        ReviewRiskSignals: []);
 
     private static AttentionScoreCalculator CreateCalculator(AttentionScoreOptions? options = null) =>
         new(Options.Create(options ?? new AttentionScoreOptions()));

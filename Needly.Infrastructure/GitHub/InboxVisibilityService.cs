@@ -145,7 +145,9 @@ public sealed class InboxVisibilityService(
                     item.Action.Milestone,
                     item.Action.RequestedViaCodeowners,
                     item.Action.AgentAuthor,
-                    item.Action.AgentDisplayName);
+                    item.Action.AgentDisplayName,
+                    item.Action.ReviewRiskLevel,
+                    item.Action.ReviewRiskSignals);
             })
             .ToList();
     }

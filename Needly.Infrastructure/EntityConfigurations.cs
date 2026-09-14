@@ -196,6 +196,19 @@ internal sealed class NeedlyActionConfiguration : IEntityTypeConfiguration<Needl
             .IsRequired();
         builder.Property(action => action.Milestone).HasMaxLength(200);
 
+        // Schema version 3 review risk facts (issue #34).
+        var reviewRiskSignalsComparer = new ValueComparer<string[]>(
+            (left, right) => (left ?? Array.Empty<string>()).SequenceEqual(right ?? Array.Empty<string>()),
+            value => value.Aggregate(0, (hash, signal) => HashCode.Combine(hash, signal.GetHashCode())),
+            value => value.ToArray());
+        builder.Property(action => action.ReviewRiskSignals)
+            .HasConversion(
+                value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
+                value => JsonSerializer.Deserialize<string[]>(value, (JsonSerializerOptions?)null) ?? Array.Empty<string>(),
+                reviewRiskSignalsComparer)
+            .HasMaxLength(2000)
+            .IsRequired();
+
         // Schema version 3 filter facts (issue #35).
         builder.Property(action => action.AgentAuthor).HasMaxLength(100);
         builder.Property(action => action.AgentDisplayName).HasMaxLength(200);
