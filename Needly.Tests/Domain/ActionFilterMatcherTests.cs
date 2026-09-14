@@ -14,6 +14,11 @@ public sealed class ActionFilterMatcherTests
         ActionAssigneeScope.Me,
         TimeSpan.FromHours(12),
         HasBotInvolvement: true,
+        Labels: ["bug", "needs-triage"],
+        IsDraft: true,
+        SizeBucket: ActionSizeBucket.M,
+        Milestone: "v2",
+        RequestedViaCodeowners: true,
         Title: "Add retry logic to the webhook dispatcher",
         Reason: "Review requested on pull request #42",
         Context: "Blocked on CI failures in the auth middleware");
@@ -81,6 +86,68 @@ public sealed class ActionFilterMatcherTests
             new ActionFilter { BotInvolvement = BotInvolvementFilter.ExcludeBots }, humanCandidate));
     }
 
+    // Schema version 2 additions (issue #32).
+    [Fact]
+    public void IsMatch_Labels_UseOrSemanticsWithinTheCriterion()
+    {
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { Labels = ["bug"] }, Candidate));
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { Labels = ["missing", "NEEDS-TRIAGE"] }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(new ActionFilter { Labels = ["enhancement"] }, Candidate));
+    }
+
+    [Fact]
+    public void IsMatch_DraftFilter_DistinguishesDraftAndReadyPullRequests()
+    {
+        var readyCandidate = Candidate with { IsDraft = false };
+        var unknownCandidate = Candidate with { IsDraft = null };
+
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { IsDraft = DraftFilter.OnlyDrafts }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(
+            new ActionFilter { IsDraft = DraftFilter.ExcludeDrafts }, Candidate));
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { IsDraft = DraftFilter.ExcludeDrafts }, readyCandidate));
+        Assert.False(ActionFilterMatcher.IsMatch(
+            new ActionFilter { IsDraft = DraftFilter.OnlyDrafts }, unknownCandidate));
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { IsDraft = DraftFilter.ExcludeDrafts }, unknownCandidate));
+    }
+
+    [Fact]
+    public void IsMatch_SizeBuckets_UseOrSemanticsAndRequireAKnownBucket()
+    {
+        var unknownSizeCandidate = Candidate with { SizeBucket = null };
+
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { SizeBuckets = [ActionSizeBucket.M] }, Candidate));
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { SizeBuckets = [ActionSizeBucket.XS, ActionSizeBucket.M] }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(new ActionFilter { SizeBuckets = [ActionSizeBucket.XL] }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(
+            new ActionFilter { SizeBuckets = [ActionSizeBucket.M] }, unknownSizeCandidate));
+    }
+
+    [Fact]
+    public void IsMatch_Milestones_MatchTheSingleAssignedMilestone()
+    {
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { Milestones = ["v2"] }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(new ActionFilter { Milestones = ["v3"] }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(
+            new ActionFilter { Milestones = ["v2"] }, Candidate with { Milestone = null }));
+    }
+
+    [Fact]
+    public void IsMatch_RequestedViaCodeowners_DistinguishesCodeownersAndDirectRequests()
+    {
+        var directCandidate = Candidate with { RequestedViaCodeowners = false };
+
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { RequestedViaCodeowners = CodeownersFilter.OnlyRequested }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(
+            new ActionFilter { RequestedViaCodeowners = CodeownersFilter.ExcludeRequested }, Candidate));
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { RequestedViaCodeowners = CodeownersFilter.ExcludeRequested }, directCandidate));
+    }
+
     public static TheoryData<ActionFilter> SingleCriterionFilters => new()
     {
         new ActionFilter { Types = [ActionType.Review] },
@@ -91,6 +158,11 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { AssigneeScope = ActionAssigneeScope.Me },
         new ActionFilter { WaitingAtLeast = TimeSpan.FromHours(8) },
         new ActionFilter { BotInvolvement = BotInvolvementFilter.OnlyBots },
+        new ActionFilter { Labels = ["BUG"] },
+        new ActionFilter { IsDraft = DraftFilter.OnlyDrafts },
+        new ActionFilter { SizeBuckets = [ActionSizeBucket.M] },
+        new ActionFilter { Milestones = ["V2"] },
+        new ActionFilter { RequestedViaCodeowners = CodeownersFilter.OnlyRequested },
         new ActionFilter { FreeText = "retry logic" }
     };
 
@@ -104,6 +176,11 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { AssigneeScope = ActionAssigneeScope.MyTeam },
         new ActionFilter { WaitingAtLeast = TimeSpan.FromDays(1) },
         new ActionFilter { BotInvolvement = BotInvolvementFilter.ExcludeBots },
+        new ActionFilter { Labels = ["enhancement"] },
+        new ActionFilter { IsDraft = DraftFilter.ExcludeDrafts },
+        new ActionFilter { SizeBuckets = [ActionSizeBucket.XL] },
+        new ActionFilter { Milestones = ["v3"] },
+        new ActionFilter { RequestedViaCodeowners = CodeownersFilter.ExcludeRequested },
         new ActionFilter { FreeText = "does not appear anywhere" }
     };
 

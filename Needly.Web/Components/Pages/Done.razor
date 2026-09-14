@@ -1,0 +1,111 @@
+@page "/done"
+@attribute [Authorize]
+@implements IDisposable
+
+<PageTitle>Done · Needly</PageTitle>
+
+<MudStack Spacing="4" Class="page-stack">
+    <header class="management-page-header">
+        <div>
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="page-kicker">Cleared work</MudText>
+            <MudText Typo="Typo.h1" HtmlTag="h1">Done</MudText>
+            <MudText Typo="Typo.body1" Class="page-description">@WeeklySummary</MudText>
+        </div>
+    </header>
+
+    <MudDivider/>
+
+    <ActionFilterEditor Value="@_filter" ValueChanged="OnFilterChangedAsync"/>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary"/>
+    }
+    else if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+            We couldn't load your Done view.
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="RetryAsync">Retry</MudButton>
+        </MudAlert>
+    }
+    else if (_actions.Count == 0)
+    {
+        <section class="empty-state" aria-labelledby="done-empty-title">
+            <div class="empty-state-icon" aria-hidden="true">
+                <MudIcon Icon="@Icons.Material.Outlined.DoneAll" Size="Size.Large"/>
+            </div>
+            <MudText Typo="Typo.h5" HtmlTag="h2" id="done-empty-title">
+                @(HasActiveFilter ? "Nothing matches this view" : "Nothing cleared yet")
+            </MudText>
+        </section>
+    }
+    else
+    {
+        <div class="management-table-wrap">
+            <table class="management-table">
+                <thead>
+                    <tr>
+                        <th>Subject</th>
+                        <th>Why it closed</th>
+                        <th>Closed</th>
+                        <th class="management-actions-heading">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var action in _actions)
+                    {
+                        <tr @key="action.ActionId">
+                            <td>
+                                <span class="management-primary">
+                                    @action.RepositoryOwner/@action.RepositoryName #@action.SubjectNumber
+                                </span>
+                                <span class="management-meta">@action.SubjectTitle</span>
+                                <span class="management-meta">@action.AssigneeDisplay</span>
+                            </td>
+                            <td>
+                                <span class="filter-summary">@action.ClosedReason</span>
+                                @if (!string.IsNullOrWhiteSpace(action.ClosedBy))
+                                {
+                                    <span class="management-meta">by @action.ClosedBy</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="management-meta">@FormatClosedAt(action)</span>
+                            </td>
+                            <td class="management-actions">
+                                <MudTooltip Text="Open on GitHub">
+                                    <MudIconButton Icon="@Icons.Material.Outlined.NorthEast"
+                                                   Size="Size.Small"
+                                                   Href="@action.SubjectUrl"
+                                                   Target="_blank"
+                                                   rel="noopener noreferrer"
+                                                   aria-label="Open on GitHub"/>
+                                </MudTooltip>
+                                @if (action.CanRestore)
+                                {
+                                    <MudTooltip Text="Restore to inbox">
+                                        <MudIconButton Icon="@Icons.Material.Outlined.Unarchive"
+                                                       Size="Size.Small"
+                                                       OnClick="() => RestoreAsync(action)"
+                                                       aria-label="Restore to inbox"/>
+                                    </MudTooltip>
+                                }
+                                else
+                                {
+                                    <MudTooltip Text="Cleared by an automation rule and can't be restored yet">
+                                        <span>
+                                            <MudIconButton Icon="@Icons.Material.Outlined.Unarchive"
+                                                           Size="Size.Small"
+                                                           Disabled="true"
+                                                           aria-label="Restore not available"/>
+                                        </span>
+                                    </MudTooltip>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</MudStack>

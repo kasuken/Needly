@@ -58,6 +58,16 @@ internal static class DomainGuard
         return Required(value, maximumLength, parameterName);
     }
 
+    public static string[] Labels(string[]? values, string parameterName)
+    {
+        if (values is null)
+        {
+            throw new ArgumentException("A non-null label collection is required.", parameterName);
+        }
+
+        return values.Select(value => Required(value, 100, parameterName)).ToArray();
+    }
+
     public static DateTimeOffset Timestamp(DateTimeOffset value) => value.ToUniversalTime();
 
     public static DateTimeOffset NotBefore(

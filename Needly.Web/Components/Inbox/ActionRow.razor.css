@@ -14,6 +14,15 @@
     transition: background-color 120ms ease, border-color 120ms ease;
 }
 
+.inbox-action:has(.action-row-select) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.action-row-select {
+    display: flex;
+    align-items: center;
+}
+
 .inbox-action:hover {
     border-color: color-mix(in srgb, var(--mud-palette-primary) 45%, var(--mud-palette-divider));
     background: var(--needly-hover);
@@ -120,6 +129,10 @@
         align-items: start;
         padding: 1rem;
         box-shadow: none;
+    }
+
+    .inbox-action:has(.action-row-select) {
+        grid-template-columns: auto minmax(0, 1fr);
     }
 
     .action-row-controls {

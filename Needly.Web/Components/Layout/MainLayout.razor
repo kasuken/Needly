@@ -68,6 +68,8 @@
         </div>
         <MudNavMenu Class="needly-nav">
             <MudNavLink Href="/inbox" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Inbox">Inbox</MudNavLink>
+            <MudNavLink Href="/waiting" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.HourglassEmpty">Waiting on others</MudNavLink>
+            <MudNavLink Href="/done" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.DoneAll">Done</MudNavLink>
             <AuthorizeView>
                 <Authorized>
                     <MudText Typo="Typo.overline" Class="drawer-section-label">Focus</MudText>

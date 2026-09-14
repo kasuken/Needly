@@ -14,6 +14,12 @@ public partial class ActionRow
     public bool Selected { get; set; }
 
     [Parameter]
+    public bool SelectionEnabled { get; set; }
+
+    [Parameter]
+    public bool IsChecked { get; set; }
+
+    [Parameter]
     public EventCallback<VisibleAction> OnArchive { get; set; }
 
     [Parameter]
@@ -21,6 +27,12 @@ public partial class ActionRow
 
     [Parameter]
     public EventCallback<VisibleAction> OnMute { get; set; }
+
+    [Parameter]
+    public EventCallback<VisibleAction> OnTogglePin { get; set; }
+
+    [Parameter]
+    public EventCallback<(VisibleAction Action, bool Checked)> OnCheckedChanged { get; set; }
 
     private string CssClass => $"inbox-action inbox-action--{Action.Type.ToString().ToLowerInvariant()}" +
         (Selected ? " inbox-action--selected" : string.Empty);
@@ -52,6 +64,10 @@ public partial class ActionRow
         OnSnooze.InvokeAsync(new ActionSnoozeRequest(Action, choice));
 
     private Task MuteAsync() => OnMute.InvokeAsync(Action);
+
+    private Task TogglePinAsync() => OnTogglePin.InvokeAsync(Action);
+
+    private Task OnCheckedChangedAsync(bool value) => OnCheckedChanged.InvokeAsync((Action, value));
 
     private static string FormatDuration(TimeSpan duration) => duration.TotalDays switch
     {

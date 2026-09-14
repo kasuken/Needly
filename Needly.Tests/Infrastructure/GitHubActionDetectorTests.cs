@@ -840,7 +840,7 @@ public sealed class GitHubActionDetectorTests
         Assert.Contains("pull_request", exception.Message, StringComparison.Ordinal);
         await using var verification = database.CreateContext();
         Assert.Empty(await verification.Actions.AsNoTracking().ToListAsync());
-        Assert.Equal(10, await verification.ActionEventReceipts.CountAsync());
+        Assert.Equal(16, await verification.ActionEventReceipts.CountAsync());
     }
 
     [Fact]
@@ -969,7 +969,16 @@ public sealed class GitHubActionDetectorTests
         var detectors = GetDetectors();
 
         Assert.Equal(
-            [("github.review-requested.v1", 100), ("github.resolve-feedback.v1", 200), ("github.ci-failure.v1", 300), ("github.respond.v1", 350), ("github.merge-ready.v1", 400)],
+            [
+                ("github.review-requested.v1", 100),
+                ("github.decide.v1", 150),
+                ("github.resolve-feedback.v1", 200),
+                ("github.follow-up.v1", 225),
+                ("github.ci-failure.v1", 300),
+                ("github.respond.v1", 350),
+                ("github.merge-ready.v1", 400),
+                ("github.monitor.v1", 450)
+            ],
             detectors.Select(detector => (detector.Key, detector.Order)).OrderBy(item => item.Order).ToArray());
         Assert.Equal(detectors.Count, detectors.Select(detector => detector.Key).Distinct(StringComparer.Ordinal).Count());
     }

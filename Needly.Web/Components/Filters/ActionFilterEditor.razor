@@ -33,6 +33,30 @@
                   Value="@_author" ValueChanged="SetAuthorAsync"/>
     <MudNumericField T="double?" Label="Waiting hours" Min="0.1"
                      Value="@_waitingHours" ValueChanged="SetWaitingAsync"/>
+    @* Schema version 2 additions (issue #32). *@
+    <MudTextField T="string" Label="Label" Placeholder="bug" Immediate="true"
+                  Value="@_label" ValueChanged="SetLabelAsync"/>
+    <MudSelect T="DraftFilter" Label="Draft" Dense="true"
+               Value="@_draft" ValueChanged="SetDraftAsync">
+        <MudSelectItem Value="DraftFilter.Any">Any</MudSelectItem>
+        <MudSelectItem Value="DraftFilter.OnlyDrafts">Only drafts</MudSelectItem>
+        <MudSelectItem Value="DraftFilter.ExcludeDrafts">Exclude drafts</MudSelectItem>
+    </MudSelect>
+    <MudSelect T="ActionSizeBucket?" Label="Size" Dense="true" Clearable="true"
+               Value="@_sizeBucket" ValueChanged="SetSizeBucketAsync">
+        @foreach (var bucket in Enum.GetValues<ActionSizeBucket>())
+        {
+            <MudSelectItem T="ActionSizeBucket?" Value="@bucket">@bucket</MudSelectItem>
+        }
+    </MudSelect>
+    <MudTextField T="string" Label="Milestone" Placeholder="v2" Immediate="true"
+                  Value="@_milestone" ValueChanged="SetMilestoneAsync"/>
+    <MudSelect T="CodeownersFilter" Label="Requested via CODEOWNERS" Dense="true"
+               Value="@_codeowners" ValueChanged="SetCodeownersAsync">
+        <MudSelectItem Value="CodeownersFilter.Any">Any</MudSelectItem>
+        <MudSelectItem Value="CodeownersFilter.OnlyRequested">Only CODEOWNERS</MudSelectItem>
+        <MudSelectItem Value="CodeownersFilter.ExcludeRequested">Exclude CODEOWNERS</MudSelectItem>
+    </MudSelect>
 </div>
 
 @code {
@@ -48,6 +72,13 @@
     private string? _author;
     private double? _waitingHours;
 
+    // Schema version 2 additions (issue #32).
+    private string? _label;
+    private DraftFilter _draft;
+    private ActionSizeBucket? _sizeBucket;
+    private string? _milestone;
+    private CodeownersFilter _codeowners;
+
     protected override void OnParametersSet()
     {
         _type = Value.Types.FirstOrDefault() is var type && Value.Types.Length > 0 ? type : null;
@@ -58,6 +89,11 @@
         _organization = Value.Organizations.FirstOrDefault();
         _author = Value.Authors.FirstOrDefault();
         _waitingHours = Value.WaitingAtLeast?.TotalHours;
+        _label = Value.Labels.FirstOrDefault();
+        _draft = Value.IsDraft;
+        _sizeBucket = Value.SizeBuckets.FirstOrDefault() is var bucket && Value.SizeBuckets.Length > 0 ? bucket : null;
+        _milestone = Value.Milestones.FirstOrDefault();
+        _codeowners = Value.RequestedViaCodeowners;
     }
 
     private Task SetTypeAsync(ActionType? value) { _type = value; return NotifyAsync(); }
@@ -68,6 +104,11 @@
     private Task SetOrganizationAsync(string value) { _organization = value; return NotifyAsync(); }
     private Task SetAuthorAsync(string value) { _author = value; return NotifyAsync(); }
     private Task SetWaitingAsync(double? value) { _waitingHours = value; return NotifyAsync(); }
+    private Task SetLabelAsync(string value) { _label = value; return NotifyAsync(); }
+    private Task SetDraftAsync(DraftFilter value) { _draft = value; return NotifyAsync(); }
+    private Task SetSizeBucketAsync(ActionSizeBucket? value) { _sizeBucket = value; return NotifyAsync(); }
+    private Task SetMilestoneAsync(string value) { _milestone = value; return NotifyAsync(); }
+    private Task SetCodeownersAsync(CodeownersFilter value) { _codeowners = value; return NotifyAsync(); }
 
     private Task NotifyAsync() => ValueChanged.InvokeAsync(new ActionFilter
     {
@@ -78,7 +119,12 @@
         Authors = Values(_author),
         AssigneeScope = _scope,
         WaitingAtLeast = _waitingHours > 0 ? TimeSpan.FromHours(_waitingHours.Value) : null,
-        BotInvolvement = _bots
+        BotInvolvement = _bots,
+        Labels = Values(_label),
+        IsDraft = _draft,
+        SizeBuckets = _sizeBucket is { } sizeBucket ? [sizeBucket] : [],
+        Milestones = Values(_milestone),
+        RequestedViaCodeowners = _codeowners
     });
 
     private static string[] Values(string? value) => string.IsNullOrWhiteSpace(value) ? [] : [value.Trim()];

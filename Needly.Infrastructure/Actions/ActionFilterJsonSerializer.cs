@@ -32,16 +32,28 @@ internal static class ActionFilterJsonSerializer
     private static ActionFilter Normalize(ActionFilter filter)
     {
         ArgumentNullException.ThrowIfNull(filter);
-        if (filter.SchemaVersion != ActionFilter.CurrentSchemaVersion)
+        if (filter.SchemaVersion is not (1 or ActionFilter.CurrentSchemaVersion))
         {
             throw new InvalidDataException(
                 $"Action filter schema version {filter.SchemaVersion} is not supported.");
         }
 
+        // Version 1 filters predate the schema version 2 (issue #32) criteria below. Their JSON never
+        // contains those properties, so the deserializer already defaults them to "no constraint"
+        // (empty arrays, Any enum members). Normalizing simply upgrades the stamped version.
+        var isLegacyVersion1 = filter.SchemaVersion == 1;
+
         var types = Required(filter.Types, nameof(filter.Types));
         var states = Required(filter.States, nameof(filter.States));
         if (types.Any(type => !Enum.IsDefined(type)) || states.Any(state => !Enum.IsDefined(state)) ||
-            !Enum.IsDefined(filter.AssigneeScope) || !Enum.IsDefined(filter.BotInvolvement))
+            !Enum.IsDefined(filter.AssigneeScope) || !Enum.IsDefined(filter.BotInvolvement) ||
+            !Enum.IsDefined(filter.IsDraft) || !Enum.IsDefined(filter.RequestedViaCodeowners))
+        {
+            throw new InvalidDataException("The action filter contains an unsupported option.");
+        }
+
+        var sizeBuckets = Required(filter.SizeBuckets, nameof(filter.SizeBuckets));
+        if (sizeBuckets.Any(bucket => !Enum.IsDefined(bucket)))
         {
             throw new InvalidDataException("The action filter contains an unsupported option.");
         }
@@ -53,11 +65,15 @@ internal static class ActionFilterJsonSerializer
 
         return filter with
         {
+            SchemaVersion = ActionFilter.CurrentSchemaVersion,
             Types = types.Distinct().Order().ToArray(),
             States = states.Distinct().Order().ToArray(),
             Repositories = NormalizeNames(filter.Repositories, nameof(filter.Repositories)),
             Organizations = NormalizeNames(filter.Organizations, nameof(filter.Organizations)),
-            Authors = NormalizeNames(filter.Authors, nameof(filter.Authors))
+            Authors = NormalizeNames(filter.Authors, nameof(filter.Authors)),
+            Labels = isLegacyVersion1 ? [] : NormalizeNames(filter.Labels, nameof(filter.Labels)),
+            SizeBuckets = isLegacyVersion1 ? [] : sizeBuckets.Distinct().Order().ToArray(),
+            Milestones = isLegacyVersion1 ? [] : NormalizeNames(filter.Milestones, nameof(filter.Milestones))
         };
     }
 

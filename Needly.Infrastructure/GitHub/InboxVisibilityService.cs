@@ -138,7 +138,12 @@ public sealed class InboxVisibilityService(
                         ? ActionAssigneeScope.Me
                         : ActionAssigneeScope.MyTeam,
                     item.Action.HasBotInvolvement,
-                    disposition?.IsPinned == true);
+                    disposition?.IsPinned == true,
+                    item.Action.Labels,
+                    item.Action.IsDraft,
+                    item.Action.SizeBucket,
+                    item.Action.Milestone,
+                    item.Action.RequestedViaCodeowners);
             })
             .ToList();
     }

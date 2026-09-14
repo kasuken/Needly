@@ -373,13 +373,25 @@ namespace Needly.Infrastructure.Migrations
                     b.Property<bool>("IsAtRisk")
                         .HasColumnType("bit");
 
+                    b.Property<bool?>("IsDraft")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
+                    b.Property<string>("Labels")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<DateTimeOffset>("LastActivityAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Milestone")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Reason")
                         .IsRequired()
@@ -389,9 +401,15 @@ namespace Needly.Infrastructure.Migrations
                     b.Property<Guid>("RepositoryId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("RequestedViaCodeowners")
+                        .HasColumnType("bit");
+
                     b.Property<string>("RiskReason")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("SizeBucket")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset?>("SnoozedUntil")
                         .HasColumnType("datetimeoffset");

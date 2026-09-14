@@ -74,7 +74,13 @@ public sealed record VisibleAction(
     string? AuthorLogin,
     ActionAssigneeScope AssigneeScope,
     bool HasBotInvolvement,
-    bool IsPinned);
+    bool IsPinned,
+    // Schema version 2 filter facts (issue #32).
+    string[] Labels,
+    bool? IsDraft,
+    ActionSizeBucket? SizeBucket,
+    string? Milestone,
+    bool RequestedViaCodeowners);
 
 /// <summary>Creates shared filter candidates from authorized inbox projections.</summary>
 public static class VisibleActionFilterCandidate
@@ -91,7 +97,12 @@ public static class VisibleActionFilterCandidate
             action.AuthorLogin,
             action.AssigneeScope,
             action.WaitingDuration,
-            action.HasBotInvolvement);
+            action.HasBotInvolvement,
+            action.Labels,
+            action.IsDraft,
+            action.SizeBucket,
+            action.Milestone,
+            action.RequestedViaCodeowners);
     }
 }
 

@@ -68,7 +68,19 @@ internal sealed record GitHubPullRequestPayload(
     [property: JsonPropertyName("user")] GitHubActionUserPayload User,
     [property: JsonPropertyName("head")] GitHubPullRequestHeadPayload Head,
     [property: JsonPropertyName("requested_reviewers")] IReadOnlyList<GitHubActionUserPayload>? RequestedReviewers,
-    [property: JsonPropertyName("requested_teams")] IReadOnlyList<GitHubActionTeamPayload>? RequestedTeams);
+    [property: JsonPropertyName("requested_teams")] IReadOnlyList<GitHubActionTeamPayload>? RequestedTeams,
+    [property: JsonPropertyName("labels")] IReadOnlyList<GitHubLabelPayload>? Labels = null,
+    [property: JsonPropertyName("milestone")] GitHubMilestonePayload? Milestone = null,
+    [property: JsonPropertyName("additions")] int? Additions = null,
+    [property: JsonPropertyName("deletions")] int? Deletions = null);
+
+/// <summary>Describes a GitHub label on an issue or pull request.</summary>
+internal sealed record GitHubLabelPayload(
+    [property: JsonPropertyName("name")] string Name);
+
+/// <summary>Describes a GitHub milestone on an issue or pull request.</summary>
+internal sealed record GitHubMilestonePayload(
+    [property: JsonPropertyName("title")] string Title);
 
 internal sealed record GitHubPullRequestHeadPayload(
     [property: JsonPropertyName("sha")] string Sha);
@@ -104,7 +116,12 @@ internal sealed record GitHubIssuePayload(
     [property: JsonPropertyName("html_url")] string HtmlUrl,
     [property: JsonPropertyName("title")] string Title,
     [property: JsonPropertyName("user")] GitHubActionUserPayload User,
-    [property: JsonPropertyName("pull_request")] JsonElement? PullRequest);
+    [property: JsonPropertyName("pull_request")] JsonElement? PullRequest,
+    [property: JsonPropertyName("updated_at")] DateTimeOffset? UpdatedAt = null,
+    [property: JsonPropertyName("body")] string? Body = null,
+    [property: JsonPropertyName("labels")] IReadOnlyList<GitHubLabelPayload>? Labels = null,
+    [property: JsonPropertyName("milestone")] GitHubMilestonePayload? Milestone = null,
+    [property: JsonPropertyName("assignees")] IReadOnlyList<GitHubActionUserPayload>? Assignees = null);
 
 internal sealed record GitHubAssociatedPullRequestPayload(
     [property: JsonPropertyName("number")] int Number);
