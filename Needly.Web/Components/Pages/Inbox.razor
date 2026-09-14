@@ -11,13 +11,39 @@
             <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="page-kicker">Inbox</MudText>
             <MudText Typo="Typo.h1" HtmlTag="h1">@Summary</MudText>
         </div>
-        @if (_refreshing)
-        {
-            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="inbox-refreshing">
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary"/>
-                Updating
-            </MudText>
-        }
+        <div class="inbox-header-controls">
+            @if (_refreshing)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="inbox-refreshing">
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary"/>
+                    Updating
+                </MudText>
+            }
+            <MudSelect T="InboxSortOrder"
+                       Value="_sortOrder"
+                       ValueChanged="OnSortOrderChangedAsync"
+                       Dense="true"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined"
+                       Label="Sort"
+                       Class="inbox-sort-select">
+                <MudSelectItem Value="InboxSortOrder.Attention">Attention</MudSelectItem>
+                <MudSelectItem Value="InboxSortOrder.Newest">Newest first</MudSelectItem>
+                <MudSelectItem Value="InboxSortOrder.Oldest">Oldest first</MudSelectItem>
+                <MudSelectItem Value="InboxSortOrder.Repository">Repository</MudSelectItem>
+            </MudSelect>
+            <MudTooltip Text="@(_selectionEnabled ? "Cancel selection" : "Select actions")">
+                <MudIconButton Icon="@Icons.Material.Outlined.ChecklistRtl"
+                               Color="@(_selectionEnabled ? Color.Primary : Color.Default)"
+                               OnClick="ToggleSelectionMode"
+                               aria-label="Toggle selection mode"/>
+            </MudTooltip>
+            <MudTooltip Text="Keyboard shortcuts (?)">
+                <MudIconButton Icon="@Icons.Material.Outlined.Keyboard"
+                               OnClick="ShowKeyboardShortcutsAsync"
+                               aria-label="Show keyboard shortcuts"/>
+            </MudTooltip>
+        </div>
     </header>
 
     <MudDivider/>
@@ -26,6 +52,36 @@
                     ValueChanged="OnFilterChangedAsync"
                     SaveRequested="SaveViewAsync"
                     ActiveViewName="@_activeViewName"/>
+
+    @if (_selectionEnabled)
+    {
+        <section class="inbox-bulk-bar" role="toolbar" aria-label="Bulk actions">
+            <MudCheckBox T="bool"
+                         Value="@(SelectedCount > 0 && SelectedCount == _actions.Count)"
+                         ValueChanged="@(_ => ToggleSelectAll())"
+                         Label="@(SelectedCount == 0 ? "Select all" : $"{SelectedCount} selected")"/>
+            <div class="inbox-bulk-actions">
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="@(SelectedCount == 0)"
+                           StartIcon="@Icons.Material.Outlined.PushPin" OnClick="@(() => BulkPinAsync(true))">
+                    Pin
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="@(SelectedCount == 0)"
+                           StartIcon="@Icons.Material.Outlined.Schedule" OnClick="@(() => BulkSnoozeAsync(ActionSnoozeChoice.LaterToday))">
+                    Snooze
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="@(SelectedCount == 0)"
+                           StartIcon="@Icons.Material.Outlined.NotificationsOff" OnClick="BulkMuteAsync">
+                    Mute
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@(SelectedCount == 0)"
+                           StartIcon="@Icons.Material.Outlined.Archive" OnClick="BulkArchiveAsync">
+                    Archive
+                </MudButton>
+                <MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="ClearSelection"
+                               aria-label="Clear selection"/>
+            </div>
+        </section>
+    }
 
     @if (_loading)
     {
@@ -70,9 +126,13 @@
                              Title="@group.Title"
                              Actions="@group.Actions"
                              SelectedActionId="@_selectedActionId"
+                             SelectionEnabled="@_selectionEnabled"
+                             SelectedIds="@_selectedIds"
                              OnArchive="ArchiveAsync"
                              OnSnooze="SnoozeAsync"
-                             OnMute="MuteAsync"/>
+                             OnMute="MuteAsync"
+                             OnTogglePin="TogglePinAsync"
+                             OnCheckedChanged="OnCheckedChanged"/>
             }
         </div>
     }

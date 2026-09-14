@@ -211,6 +211,77 @@ public sealed class ActionLifecycleServiceTests
     }
 
     [Fact]
+    public async Task SetPinnedAsync_VisibleAction_PersistsPinAndTogglingUnpinsIt()
+    {
+        await using var database = await LifecycleTestDatabase.CreateAsync();
+        var seed = await SeedAsync(database);
+        var broadcaster = new RecordingBroadcaster();
+        var service = CreateService(database, broadcaster);
+
+        var pinned = await service.SetPinnedAsync(
+            seed.NeedlyUser.Id,
+            seed.Action.Id,
+            true,
+            CancellationToken.None);
+
+        Assert.True(pinned);
+        await using (var pinnedContext = database.CreateContext())
+        {
+            Assert.True((await pinnedContext.ActionDispositions.SingleAsync()).IsPinned);
+        }
+
+        var unpinned = await service.SetPinnedAsync(
+            seed.NeedlyUser.Id,
+            seed.Action.Id,
+            false,
+            CancellationToken.None);
+
+        Assert.True(unpinned);
+        await using var verification = database.CreateContext();
+        Assert.False((await verification.ActionDispositions.SingleAsync()).IsPinned);
+        Assert.Equal(2, broadcaster.PublishCount);
+    }
+
+    [Fact]
+    public async Task SetPinnedAsync_ActionVisibleToAnotherInstallationMember_DoesNotChangeDisposition()
+    {
+        await using var database = await LifecycleTestDatabase.CreateAsync();
+        var seed = await SeedAsync(database);
+        var otherGitHubUser = TestData.CreateGitHubUser(Guid.NewGuid(), 903);
+        var otherNeedlyUser = NeedlyUser.Create(
+            Guid.NewGuid(),
+            otherGitHubUser.Id,
+            "other-pin@example.test",
+            "Other user",
+            TestData.CreatedAt);
+        await using (var context = database.CreateContext())
+        {
+            context.AddRange(
+                otherGitHubUser,
+                otherNeedlyUser,
+                InstallationMember.Create(
+                    Guid.NewGuid(),
+                    seed.Installation.Id,
+                    otherGitHubUser.Id,
+                    TestData.CreatedAt));
+            await context.SaveChangesAsync();
+        }
+        var broadcaster = new RecordingBroadcaster();
+        var service = CreateService(database, broadcaster);
+
+        var result = await service.SetPinnedAsync(
+            otherNeedlyUser.Id,
+            seed.Action.Id,
+            true,
+            CancellationToken.None);
+
+        Assert.False(result);
+        await using var verification = database.CreateContext();
+        Assert.Empty(await verification.ActionDispositions.ToListAsync());
+        Assert.Equal(0, broadcaster.PublishCount);
+    }
+
+    [Fact]
     public async Task UndoAsync_AnotherUserOwnsUndo_DoesNotRestoreAction()
     {
         await using var database = await LifecycleTestDatabase.CreateAsync();
