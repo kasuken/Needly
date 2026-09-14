@@ -113,10 +113,11 @@ public sealed class GitHubActionEventHandlerReviewRiskTests
             database,
             GetDetectors(),
             NullLogger<GitHubActionEventHandler>.Instance,
-            null,
-            null,
-            fileLookup,
-            new ReviewRiskClassifier(Options.Create(new ReviewRiskOptions())));
+            broadcaster: null,
+            ruleEvaluator: null,
+            agentClassifier: null,
+            pullRequestFileLookup: fileLookup,
+            reviewRiskClassifier: new ReviewRiskClassifier(Options.Create(new ReviewRiskOptions())));
 
     private sealed class FakeFileLookup : IGitHubPullRequestFileLookup
     {
