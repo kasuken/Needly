@@ -51,6 +51,10 @@ public static class DoneActionFilterCandidate
     public static ActionFilterCandidate Create(DoneAction action)
     {
         ArgumentNullException.ThrowIfNull(action);
+        // Labels, draft state, size bucket, milestone and CODEOWNERS involvement are not tracked on
+        // DoneAction (that schema predates the ActionFilter v2 criteria added for issue #32). Passing
+        // "no constraint" defaults here means those criteria simply don't narrow Done view results yet,
+        // rather than the candidate failing to construct at all.
         return new ActionFilterCandidate(
             action.Type,
             action.State,
@@ -59,6 +63,11 @@ public static class DoneActionFilterCandidate
             action.AuthorLogin,
             action.AssigneeScope,
             action.TimeSinceClosed,
-            action.HasBotInvolvement);
+            action.HasBotInvolvement,
+            Labels: [],
+            IsDraft: null,
+            SizeBucket: null,
+            Milestone: null,
+            RequestedViaCodeowners: false);
     }
 }
