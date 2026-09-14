@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
+using Needly.Application.Actions;
 using Needly.Application.GitHub;
 using Needly.Domain;
 
@@ -7,6 +8,8 @@ namespace Needly.Web.Components.Inbox;
 
 public partial class ActionRow
 {
+    [Inject] private IAttentionScoreCalculator ScoreCalculator { get; set; } = null!;
+
     [Parameter, EditorRequired]
     public VisibleAction Action { get; set; } = null!;
 
@@ -57,6 +60,21 @@ public partial class ActionRow
         : "Open on GitHub";
 
     private string WaitingLabel => FormatDuration(Action.WaitingDuration);
+
+    private AttentionScoreResult Score => ScoreCalculator.Calculate(Action);
+
+    private Color ScoreColor => Score.Score switch
+    {
+        >= 80 => Color.Error,
+        >= 55 => Color.Warning,
+        >= 30 => Color.Info,
+        _ => Color.Default
+    };
+
+    private string ScoreTooltip => Score.Reasons.Count == 0
+        ? "No attention signals matched"
+        : string.Join(" · ", Score.Reasons.Select(reason =>
+            $"{(reason.Points >= 0 ? "+" : string.Empty)}{reason.Points} {reason.Description}"));
 
     private Task ArchiveAsync() => OnArchive.InvokeAsync(Action);
 

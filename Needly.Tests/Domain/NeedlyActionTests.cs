@@ -201,4 +201,38 @@ public sealed class NeedlyActionTests
         Assert.Null(action.ReviewRiskLevel);
         Assert.Empty(action.ReviewRiskSignals);
     }
+
+    // Schema version 3 additions (issue #35).
+    [Fact]
+    public void UpdateAgentAuthor_KnownAgent_PersistsKeyAndDisplayName()
+    {
+        var action = TestData.CreateAction();
+
+        action.UpdateAgentAuthor("dependabot", "Dependabot");
+
+        Assert.Equal("dependabot", action.AgentAuthor);
+        Assert.Equal("Dependabot", action.AgentDisplayName);
+    }
+
+    [Fact]
+    public void UpdateAgentAuthor_NoBotInvolvement_LeavesBothValuesNull()
+    {
+        var action = TestData.CreateAction();
+
+        action.UpdateAgentAuthor(null, null);
+
+        Assert.Null(action.AgentAuthor);
+        Assert.Null(action.AgentDisplayName);
+    }
+
+    [Fact]
+    public void UpdateAgentAuthor_RecognizedButUnmatchedBot_UsesFallbackKeyDistinctFromNull()
+    {
+        var action = TestData.CreateAction();
+
+        action.UpdateAgentAuthor("other-bot", "Other bot");
+
+        Assert.Equal("other-bot", action.AgentAuthor);
+        Assert.NotNull(action.AgentAuthor);
+    }
 }

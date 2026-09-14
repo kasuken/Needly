@@ -100,9 +100,8 @@ public sealed class NeedlyAction
 
     // Schema version 3 review risk facts (issue #34). Kept as a separate block, appended after the
     // schema version 2 filter facts above, to avoid reformatting or reordering existing members.
-    // Issue #35 (agent-authored PR detection), running concurrently in another branch, also extends
-    // this class with its own schema version 3 facts; each addition is a clearly separated, minimal,
-    // appended block so both are easy to merge.
+    // Issue #35 (agent-authored PR detection), landed alongside, also extends this class with its own
+    // schema version 3 facts directly below; each addition is a clearly separated, minimal block.
     /// <summary>
     /// Gets the pull request's overall review risk level, or null when not applicable (the subject is
     /// an issue) or not yet computed.
@@ -114,6 +113,21 @@ public sealed class NeedlyAction
     /// "authentication", "database migration"). Never populated without a level.
     /// </summary>
     public string[] ReviewRiskSignals { get; private set; } = [];
+
+    // Schema version 3 additions (issue #35). Independent of the #34 block immediately above; both
+    // landed side by side.
+    /// <summary>
+    /// Gets the key identifying the specific detected agent or bot that authored the subject (for
+    /// example "dependabot" or "github-copilot"), or <see langword="null"/> when no bot involvement is
+    /// detected. A recognized-but-unmatched bot uses the configured fallback key (see
+    /// <see cref="UpdateAgentAuthor"/>) rather than <see langword="null"/>, so <see langword="null"/> means
+    /// "no agent detected" and a non-null value always means some bot was detected, distinguishing the two
+    /// cases <see cref="HasBotInvolvement"/> alone could not.
+    /// </summary>
+    public string? AgentAuthor { get; private set; }
+
+    /// <summary>Gets the human-readable display name for <see cref="AgentAuthor"/>, or null when no bot involvement is detected.</summary>
+    public string? AgentDisplayName { get; private set; }
 
     /// <summary>
     /// Creates an action assigned to a GitHub user.
@@ -406,6 +420,23 @@ public sealed class NeedlyAction
     {
         ReviewRiskLevel = level;
         ReviewRiskSignals = level is null ? [] : DomainGuard.Labels(matchedSignals, nameof(matchedSignals));
+    }
+
+    /// <summary>
+    /// Updates the persistence-neutral agent identity facts added for schema version 3 (issue #35) and used
+    /// by Saved Views and Rules. Kept as a new method, separate from <see cref="UpdateFilterMetadata"/>, so
+    /// that method's existing call sites do not need to change.
+    /// </summary>
+    /// <param name="agentAuthor">
+    /// The detected agent/bot key, or <see langword="null"/> when no bot is involved. Pass the configured
+    /// fallback key (e.g. "other-bot") when a bot is detected but matches no specific rule; this is
+    /// distinct from <see langword="null"/>, which means no agent was detected at all.
+    /// </param>
+    /// <param name="agentDisplayName">The human-readable display name for the detected agent/bot, or null when no bot is involved.</param>
+    public void UpdateAgentAuthor(string? agentAuthor, string? agentDisplayName)
+    {
+        AgentAuthor = DomainGuard.Optional(agentAuthor, 100, nameof(agentAuthor));
+        AgentDisplayName = DomainGuard.Optional(agentDisplayName, 200, nameof(agentDisplayName));
     }
 
     private static NeedlyAction Create(

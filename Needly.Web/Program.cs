@@ -42,6 +42,12 @@ builder.Services.AddOptions<DecideOptions>()
 builder.Services.AddOptions<ReviewRiskOptions>()
     .Bind(builder.Configuration.GetSection(ReviewRiskOptions.SectionName))
     .ValidateOnStart();
+builder.Services.AddOptions<AgentDetectionOptions>()
+    .Bind(builder.Configuration.GetSection(AgentDetectionOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddOptions<AttentionScoreOptions>()
+    .Bind(builder.Configuration.GetSection(AttentionScoreOptions.SectionName))
+    .ValidateOnStart();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<SavedViewNavigationState>();
 builder.Services.AddHealthChecks()

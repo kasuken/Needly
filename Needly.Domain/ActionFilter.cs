@@ -186,10 +186,18 @@ public sealed record ActionFilter
     public string? FreeText { get; init; }
 
     // Schema version 3 additions (issue #34). Kept as a separate block, appended after the version 2
-    // criteria above, to avoid reformatting or reordering existing members. Issue #35, running
-    // concurrently, also bumps to schema version 3 and appends its own criteria here.
+    // criteria above, to avoid reformatting or reordering existing members. Issue #35, landed alongside,
+    // also bumped to schema version 3 and appends its own criterion directly below.
     /// <summary>Gets the accepted review risk levels, or an empty collection for any level.</summary>
     public ReviewRiskLevel[] RiskLevels { get; init; } = [];
+
+    // Schema version 3 additions (issue #35). Independent of the #34 addition immediately above; both
+    // bumped CurrentSchemaVersion to 3 and landed side by side.
+    /// <summary>
+    /// Gets the accepted agent/bot identity keys (see <see cref="NeedlyAction.AgentAuthor"/>), or an
+    /// empty collection for any agent involvement, matched with OR semantics like <see cref="Labels"/>.
+    /// </summary>
+    public string[] AgentAuthors { get; init; } = [];
 }
 
 /// <summary>Contains the action and viewer facts consumed by <see cref="ActionFilterMatcher"/>.</summary>
@@ -209,6 +217,11 @@ public sealed record ActionFilter
 /// <param name="Title">The subject title, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
 /// <param name="Reason">The action reason text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
 /// <param name="Context">Additional context text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
+/// <param name="AgentAuthor">
+/// The detected agent/bot identity key, or null when no bot involvement is detected. Added for issue #35
+/// (schema version 3) as a trailing optional parameter, defaulted to null, so existing call sites did not
+/// need to change.
+/// </param>
 /// <param name="RiskLevel">
 /// The pull request's overall review risk level, or null when not applicable (an issue) or not yet
 /// computed. Added for issue #34.
@@ -230,6 +243,7 @@ public sealed record ActionFilterCandidate(
     string? Title = null,
     string? Reason = null,
     string? Context = null,
+    string? AgentAuthor = null,
     // Schema version 3 addition (issue #34).
     ReviewRiskLevel? RiskLevel = null);
 
@@ -279,6 +293,9 @@ public static class ActionFilterMatcher
                 CodeownersFilter.ExcludeRequested => !candidate.RequestedViaCodeowners,
                 _ => false
             } &&
+            // Schema version 3 additions (issue #35). Kept as a separate block, appended after the
+            // version 2 criteria above, to avoid reformatting or reordering existing logic.
+            Contains(filter.AgentAuthors, candidate.AgentAuthor) &&
             // Added for issue #24 (inbox search).
             MatchesFreeText(filter.FreeText, candidate) &&
             // Schema version 3 additions (issue #34). Kept as a separate block, appended after the

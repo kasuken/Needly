@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Needly.Infrastructure;
 
@@ -11,9 +12,11 @@ using Needly.Infrastructure;
 namespace Needly.Infrastructure.Migrations
 {
     [DbContext(typeof(NeedlyDbContext))]
-    partial class NeedlyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914161247_AddAgentAuthor")]
+    partial class AddAgentAuthor
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -411,14 +414,6 @@ namespace Needly.Infrastructure.Migrations
 
                     b.Property<bool>("RequestedViaCodeowners")
                         .HasColumnType("bit");
-
-                    b.Property<int?>("ReviewRiskLevel")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReviewRiskSignals")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("RiskReason")
                         .HasMaxLength(1000)

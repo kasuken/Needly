@@ -22,6 +22,7 @@ public sealed class ActionFilterMatcherTests
         Title: "Add retry logic to the webhook dispatcher",
         Reason: "Review requested on pull request #42",
         Context: "Blocked on CI failures in the auth middleware",
+        AgentAuthor: "dependabot",
         RiskLevel: ReviewRiskLevel.High);
 
     [Fact]
@@ -149,6 +150,25 @@ public sealed class ActionFilterMatcherTests
             new ActionFilter { RequestedViaCodeowners = CodeownersFilter.ExcludeRequested }, directCandidate));
     }
 
+    // Schema version 3 additions (issue #35).
+    [Fact]
+    public void IsMatch_AgentAuthors_UseOrSemanticsWithinTheCriterion()
+    {
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { AgentAuthors = ["dependabot"] }, Candidate));
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { AgentAuthors = ["missing", "DEPENDABOT"] }, Candidate));
+        Assert.False(ActionFilterMatcher.IsMatch(new ActionFilter { AgentAuthors = ["renovate"] }, Candidate));
+    }
+
+    [Fact]
+    public void IsMatch_AgentAuthors_RequireAKnownAgent()
+    {
+        var humanCandidate = Candidate with { AgentAuthor = null };
+
+        Assert.False(ActionFilterMatcher.IsMatch(
+            new ActionFilter { AgentAuthors = ["dependabot"] }, humanCandidate));
+    }
+
     public static TheoryData<ActionFilter> SingleCriterionFilters => new()
     {
         new ActionFilter { Types = [ActionType.Review] },
@@ -165,6 +185,7 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { Milestones = ["V2"] },
         new ActionFilter { RequestedViaCodeowners = CodeownersFilter.OnlyRequested },
         new ActionFilter { FreeText = "retry logic" },
+        new ActionFilter { AgentAuthors = ["DEPENDABOT"] },
         new ActionFilter { RiskLevels = [ReviewRiskLevel.High] }
     };
 
@@ -184,6 +205,7 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { Milestones = ["v3"] },
         new ActionFilter { RequestedViaCodeowners = CodeownersFilter.ExcludeRequested },
         new ActionFilter { FreeText = "does not appear anywhere" },
+        new ActionFilter { AgentAuthors = ["renovate"] },
         new ActionFilter { RiskLevels = [ReviewRiskLevel.Low] }
     };
 

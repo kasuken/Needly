@@ -126,8 +126,13 @@ internal sealed record GitHubIssuePayload(
 internal sealed record GitHubAssociatedPullRequestPayload(
     [property: JsonPropertyName("number")] int Number);
 
+// The "slug" field (added for issue #35) identifies the GitHub App backing a check_suite/check_run,
+// which is a more stable agent-identification signal than the display "name". It is not yet threaded
+// into agent classification (that classifies pull_request/issue authorship, not check events), but is
+// captured here for forward compatibility with future CI-based agent signals.
 internal sealed record GitHubCheckAppPayload(
-    [property: JsonPropertyName("name")] string Name);
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("slug")] string? Slug = null);
 
 internal sealed record GitHubCheckSuitePayload(
     [property: JsonPropertyName("id")] long Id,

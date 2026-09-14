@@ -69,6 +69,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDoneActionsService, DoneActionsService>();
         services.AddScoped<IAutomationRuleService, AutomationRuleService>();
         services.AddSingleton<AutomationRuleEvaluator>();
+        services.AddScoped<IAttentionScoreCalculator, AttentionScoreCalculator>();
         services.AddOptions<ActionRiskOptions>()
             .Validate(
                 options => options.ReviewWaitingThreshold > TimeSpan.Zero,
@@ -95,6 +96,22 @@ public static class ServiceCollectionExtensions
             .Validate(
                 options => options.LargeDiffChangedLines > 0,
                 "ReviewRisk:LargeDiffChangedLines must be positive.");
+        // Added for issue #35 (agent-authored pull request detection).
+        services.AddOptions<AgentDetectionOptions>()
+            .Validate(
+                options => options.Rules.All(rule =>
+                    !string.IsNullOrWhiteSpace(rule.Key) && !string.IsNullOrWhiteSpace(rule.DisplayName)),
+                "AgentDetection:Rules entries must each have a Key and DisplayName.")
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.OtherBotKey) &&
+                    !string.IsNullOrWhiteSpace(options.OtherBotDisplayName),
+                "AgentDetection:OtherBotKey and OtherBotDisplayName must be set.");
+        services.AddSingleton(provider =>
+            new AgentClassifier(provider.GetRequiredService<IOptions<AgentDetectionOptions>>().Value));
+        services.AddOptions<AttentionScoreOptions>()
+            .Validate(
+                options => options.WaitingTiers.All(tier => tier.AtLeast > TimeSpan.Zero),
+                "AttentionScore:WaitingTiers entries must have a positive AtLeast duration.");
         services.AddScoped<IGitHubWebhookIngestionService, GitHubWebhookIngestionService>();
         services.AddOptions<GitHubActionOptions>()
             .Validate(

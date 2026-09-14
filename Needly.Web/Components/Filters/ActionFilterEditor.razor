@@ -57,6 +57,9 @@
         <MudSelectItem Value="CodeownersFilter.OnlyRequested">Only CODEOWNERS</MudSelectItem>
         <MudSelectItem Value="CodeownersFilter.ExcludeRequested">Exclude CODEOWNERS</MudSelectItem>
     </MudSelect>
+    @* Schema version 3 additions (issue #35). *@
+    <MudTextField T="string" Label="Agent author" Placeholder="dependabot" Immediate="true"
+                  Value="@_agentAuthor" ValueChanged="SetAgentAuthorAsync"/>
     @* Schema version 3 addition (issue #34). *@
     <MudSelect T="ReviewRiskLevel?" Label="Review risk" Dense="true" Clearable="true"
                Value="@_riskLevel" ValueChanged="SetRiskLevelAsync">
@@ -87,6 +90,9 @@
     private string? _milestone;
     private CodeownersFilter _codeowners;
 
+    // Schema version 3 additions (issue #35).
+    private string? _agentAuthor;
+
     // Schema version 3 addition (issue #34).
     private ReviewRiskLevel? _riskLevel;
 
@@ -105,6 +111,7 @@
         _sizeBucket = Value.SizeBuckets.FirstOrDefault() is var bucket && Value.SizeBuckets.Length > 0 ? bucket : null;
         _milestone = Value.Milestones.FirstOrDefault();
         _codeowners = Value.RequestedViaCodeowners;
+        _agentAuthor = Value.AgentAuthors.FirstOrDefault();
         _riskLevel = Value.RiskLevels.FirstOrDefault() is var riskLevel && Value.RiskLevels.Length > 0 ? riskLevel : null;
     }
 
@@ -121,6 +128,7 @@
     private Task SetSizeBucketAsync(ActionSizeBucket? value) { _sizeBucket = value; return NotifyAsync(); }
     private Task SetMilestoneAsync(string value) { _milestone = value; return NotifyAsync(); }
     private Task SetCodeownersAsync(CodeownersFilter value) { _codeowners = value; return NotifyAsync(); }
+    private Task SetAgentAuthorAsync(string value) { _agentAuthor = value; return NotifyAsync(); }
     private Task SetRiskLevelAsync(ReviewRiskLevel? value) { _riskLevel = value; return NotifyAsync(); }
 
     private Task NotifyAsync() => ValueChanged.InvokeAsync(new ActionFilter
@@ -138,6 +146,7 @@
         SizeBuckets = _sizeBucket is { } sizeBucket ? [sizeBucket] : [],
         Milestones = Values(_milestone),
         RequestedViaCodeowners = _codeowners,
+        AgentAuthors = Values(_agentAuthor),
         RiskLevels = _riskLevel is { } riskLevel ? [riskLevel] : []
     });
 

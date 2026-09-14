@@ -81,6 +81,9 @@ public sealed record VisibleAction(
     ActionSizeBucket? SizeBucket,
     string? Milestone,
     bool RequestedViaCodeowners,
+    // Schema version 3 additions (issue #35).
+    string? AgentAuthor,
+    string? AgentDisplayName,
     // Schema version 3 review risk facts (issue #34).
     ReviewRiskLevel? ReviewRiskLevel,
     string[] ReviewRiskSignals);
@@ -106,6 +109,7 @@ public static class VisibleActionFilterCandidate
             action.SizeBucket,
             action.Milestone,
             action.RequestedViaCodeowners,
+            AgentAuthor: action.AgentAuthor,
             RiskLevel: action.ReviewRiskLevel);
     }
 }
