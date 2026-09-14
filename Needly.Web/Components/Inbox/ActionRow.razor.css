@@ -65,6 +65,12 @@
     color: var(--action-accent);
 }
 
+.action-score-chip {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
 .action-repository {
     overflow: hidden;
     color: var(--mud-palette-text-secondary);

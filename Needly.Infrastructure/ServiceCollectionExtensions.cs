@@ -69,6 +69,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDoneActionsService, DoneActionsService>();
         services.AddScoped<IAutomationRuleService, AutomationRuleService>();
         services.AddSingleton<AutomationRuleEvaluator>();
+        services.AddScoped<IAttentionScoreCalculator, AttentionScoreCalculator>();
         services.AddOptions<ActionRiskOptions>()
             .Validate(
                 options => options.ReviewWaitingThreshold > TimeSpan.Zero,
@@ -90,6 +91,10 @@ public static class ServiceCollectionExtensions
             .Validate(
                 options => options.Labels.Count > 0,
                 "Decide:Labels must contain at least one label.");
+        services.AddOptions<AttentionScoreOptions>()
+            .Validate(
+                options => options.WaitingTiers.All(tier => tier.AtLeast > TimeSpan.Zero),
+                "AttentionScore:WaitingTiers entries must have a positive AtLeast duration.");
         services.AddScoped<IGitHubWebhookIngestionService, GitHubWebhookIngestionService>();
         services.AddOptions<GitHubActionOptions>()
             .Validate(
