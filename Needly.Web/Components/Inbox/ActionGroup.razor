@@ -9,9 +9,13 @@
             <ActionRow @key="action.ActionId"
                        Action="action"
                        Selected="@(action.ActionId == SelectedActionId)"
+                       SelectionEnabled="@SelectionEnabled"
+                       IsChecked="@(SelectedIds?.Contains(action.ActionId) == true)"
                        OnArchive="OnArchive"
                        OnSnooze="OnSnooze"
-                       OnMute="OnMute"/>
+                       OnMute="OnMute"
+                       OnTogglePin="OnTogglePin"
+                       OnCheckedChanged="OnCheckedChanged"/>
         }
     </div>
 </section>
@@ -27,6 +31,12 @@
     public Guid? SelectedActionId { get; set; }
 
     [Parameter]
+    public bool SelectionEnabled { get; set; }
+
+    [Parameter]
+    public IReadOnlySet<Guid>? SelectedIds { get; set; }
+
+    [Parameter]
     public EventCallback<VisibleAction> OnArchive { get; set; }
 
     [Parameter]
@@ -34,6 +44,12 @@
 
     [Parameter]
     public EventCallback<VisibleAction> OnMute { get; set; }
+
+    [Parameter]
+    public EventCallback<VisibleAction> OnTogglePin { get; set; }
+
+    [Parameter]
+    public EventCallback<(VisibleAction Action, bool Checked)> OnCheckedChanged { get; set; }
 
     private string HeadingId => $"action-group-{Title.Replace(" ", "-", StringComparison.Ordinal).ToLowerInvariant()}";
 }
