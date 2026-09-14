@@ -150,6 +150,55 @@ public sealed class SavedViewServiceTests
         Assert.Equal(CodeownersFilter.OnlyRequested, view.Filter.RequestedViaCodeowners);
     }
 
+    // Schema version 3 additions (issue #35).
+    [Fact]
+    public async Task CreateAsync_SchemaVersion3Filter_RoundTripsNewCriterion()
+    {
+        await using var database = await ViewTestDatabase.CreateAsync();
+        var user = await SeedUserAsync(database, "first@example.test", 201);
+        var service = CreateService(database, new FakeInboxVisibilityService(
+            new Dictionary<Guid, IReadOnlyList<VisibleAction>>()));
+        var filter = new ActionFilter { AgentAuthors = ["dependabot", "github-copilot"] };
+
+        await service.CreateAsync(user.Id, "Agent work", filter, CancellationToken.None);
+        var view = Assert.Single(await service.GetAsync(user.Id, CancellationToken.None), item => !item.IsBuiltIn);
+
+        Assert.Equal(ActionFilter.CurrentSchemaVersion, view.Filter.SchemaVersion);
+        Assert.Equal(["dependabot", "github-copilot"], view.Filter.AgentAuthors);
+    }
+
+    [Fact]
+    public async Task GetAsync_LegacySchemaVersion2Json_DefaultsAgentAuthorsToNoConstraintAndKeepsExistingOnes()
+    {
+        await using var database = await ViewTestDatabase.CreateAsync();
+        var user = await SeedUserAsync(database, "first@example.test", 201);
+        const string legacyJson = """
+            {
+              "schemaVersion": 2,
+              "types": ["Review"],
+              "states": ["Open"],
+              "labels": ["bug"],
+              "milestones": ["v2"]
+            }
+            """;
+        await using (var context = database.CreateContext())
+        {
+            context.SavedViews.Add(SavedView.Create(
+                Guid.NewGuid(), user.Id, "Legacy v2", legacyJson, 0, TestData.CreatedAt));
+            await context.SaveChangesAsync();
+        }
+
+        var service = CreateService(database, new FakeInboxVisibilityService(
+            new Dictionary<Guid, IReadOnlyList<VisibleAction>>()));
+        var view = Assert.Single(await service.GetAsync(user.Id, CancellationToken.None), item => !item.IsBuiltIn);
+
+        Assert.Equal(ActionFilter.CurrentSchemaVersion, view.Filter.SchemaVersion);
+        Assert.Equal([ActionType.Review], view.Filter.Types);
+        Assert.Equal(["bug"], view.Filter.Labels);
+        Assert.Equal(["v2"], view.Filter.Milestones);
+        Assert.Empty(view.Filter.AgentAuthors);
+    }
+
     [Fact]
     public async Task GetAsync_LegacySchemaVersion1Json_DefaultsNewCriteriaToNoConstraintAndKeepsExistingOnes()
     {
@@ -189,6 +238,7 @@ public sealed class SavedViewServiceTests
         Assert.Empty(view.Filter.SizeBuckets);
         Assert.Empty(view.Filter.Milestones);
         Assert.Equal(CodeownersFilter.Any, view.Filter.RequestedViaCodeowners);
+        Assert.Empty(view.Filter.AgentAuthors);
     }
 
     private static SavedViewService CreateService(
@@ -220,7 +270,7 @@ public sealed class SavedViewServiceTests
             $"https://github.com/{owner}/needly/pull/42", type, ActionState.Open, "Reason", null,
             scope == ActionAssigneeScope.Me ? "@octocat" : "Maintainers (@maintainers)",
             "Trigger", TestData.CreatedAt, waiting, false, null, author, scope, false, false,
-            [], null, null, null, false);
+            [], null, null, null, false, null, null);
 
     private sealed class FakeInboxVisibilityService(
         IReadOnlyDictionary<Guid, IReadOnlyList<VisibleAction>> actions) : IInboxVisibilityService

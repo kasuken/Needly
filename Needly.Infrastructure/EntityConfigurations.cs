@@ -196,6 +196,10 @@ internal sealed class NeedlyActionConfiguration : IEntityTypeConfiguration<Needl
             .IsRequired();
         builder.Property(action => action.Milestone).HasMaxLength(200);
 
+        // Schema version 3 filter facts (issue #35).
+        builder.Property(action => action.AgentAuthor).HasMaxLength(100);
+        builder.Property(action => action.AgentDisplayName).HasMaxLength(200);
+
         builder.HasIndex(action => action.Key)
             .HasFilter(ActiveActionFilter)
             .IsUnique();

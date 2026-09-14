@@ -32,7 +32,7 @@ internal static class ActionFilterJsonSerializer
     private static ActionFilter Normalize(ActionFilter filter)
     {
         ArgumentNullException.ThrowIfNull(filter);
-        if (filter.SchemaVersion is not (1 or ActionFilter.CurrentSchemaVersion))
+        if (filter.SchemaVersion is not (1 or 2 or ActionFilter.CurrentSchemaVersion))
         {
             throw new InvalidDataException(
                 $"Action filter schema version {filter.SchemaVersion} is not supported.");
@@ -42,6 +42,11 @@ internal static class ActionFilterJsonSerializer
         // contains those properties, so the deserializer already defaults them to "no constraint"
         // (empty arrays, Any enum members). Normalizing simply upgrades the stamped version.
         var isLegacyVersion1 = filter.SchemaVersion == 1;
+
+        // Versions 1 and 2 predate the schema version 3 (issue #35) AgentAuthors criterion below. Their
+        // JSON never contains that property, so the deserializer already defaults it to "no constraint"
+        // (an empty array). Normalizing simply upgrades the stamped version, same as the version 1 case.
+        var isBeforeVersion3 = filter.SchemaVersion < 3;
 
         var types = Required(filter.Types, nameof(filter.Types));
         var states = Required(filter.States, nameof(filter.States));
@@ -73,7 +78,9 @@ internal static class ActionFilterJsonSerializer
             Authors = NormalizeNames(filter.Authors, nameof(filter.Authors)),
             Labels = isLegacyVersion1 ? [] : NormalizeNames(filter.Labels, nameof(filter.Labels)),
             SizeBuckets = isLegacyVersion1 ? [] : sizeBuckets.Distinct().Order().ToArray(),
-            Milestones = isLegacyVersion1 ? [] : NormalizeNames(filter.Milestones, nameof(filter.Milestones))
+            Milestones = isLegacyVersion1 ? [] : NormalizeNames(filter.Milestones, nameof(filter.Milestones)),
+            // Schema version 3 addition (issue #35).
+            AgentAuthors = isBeforeVersion3 ? [] : NormalizeNames(filter.AgentAuthors, nameof(filter.AgentAuthors))
         };
     }
 

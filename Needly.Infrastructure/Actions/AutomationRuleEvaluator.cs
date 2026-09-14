@@ -69,7 +69,8 @@ public sealed class AutomationRuleEvaluator(TimeProvider timeProvider)
                     action.IsDraft,
                     action.SizeBucket,
                     action.Milestone,
-                    action.RequestedViaCodeowners);
+                    action.RequestedViaCodeowners,
+                    AgentAuthor: action.AgentAuthor);
                 foreach (var rule in rules.Where(rule => rule.NeedlyUserId == user.Id))
                 {
                     var filter = ActionFilterJsonSerializer.Deserialize(rule.FilterJson);

@@ -57,6 +57,9 @@
         <MudSelectItem Value="CodeownersFilter.OnlyRequested">Only CODEOWNERS</MudSelectItem>
         <MudSelectItem Value="CodeownersFilter.ExcludeRequested">Exclude CODEOWNERS</MudSelectItem>
     </MudSelect>
+    @* Schema version 3 additions (issue #35). *@
+    <MudTextField T="string" Label="Agent author" Placeholder="dependabot" Immediate="true"
+                  Value="@_agentAuthor" ValueChanged="SetAgentAuthorAsync"/>
 </div>
 
 @code {
@@ -79,6 +82,9 @@
     private string? _milestone;
     private CodeownersFilter _codeowners;
 
+    // Schema version 3 additions (issue #35).
+    private string? _agentAuthor;
+
     protected override void OnParametersSet()
     {
         _type = Value.Types.FirstOrDefault() is var type && Value.Types.Length > 0 ? type : null;
@@ -94,6 +100,7 @@
         _sizeBucket = Value.SizeBuckets.FirstOrDefault() is var bucket && Value.SizeBuckets.Length > 0 ? bucket : null;
         _milestone = Value.Milestones.FirstOrDefault();
         _codeowners = Value.RequestedViaCodeowners;
+        _agentAuthor = Value.AgentAuthors.FirstOrDefault();
     }
 
     private Task SetTypeAsync(ActionType? value) { _type = value; return NotifyAsync(); }
@@ -109,6 +116,7 @@
     private Task SetSizeBucketAsync(ActionSizeBucket? value) { _sizeBucket = value; return NotifyAsync(); }
     private Task SetMilestoneAsync(string value) { _milestone = value; return NotifyAsync(); }
     private Task SetCodeownersAsync(CodeownersFilter value) { _codeowners = value; return NotifyAsync(); }
+    private Task SetAgentAuthorAsync(string value) { _agentAuthor = value; return NotifyAsync(); }
 
     private Task NotifyAsync() => ValueChanged.InvokeAsync(new ActionFilter
     {
@@ -124,7 +132,8 @@
         IsDraft = _draft,
         SizeBuckets = _sizeBucket is { } sizeBucket ? [sizeBucket] : [],
         Milestones = Values(_milestone),
-        RequestedViaCodeowners = _codeowners
+        RequestedViaCodeowners = _codeowners,
+        AgentAuthors = Values(_agentAuthor)
     });
 
     private static string[] Values(string? value) => string.IsNullOrWhiteSpace(value) ? [] : [value.Trim()];

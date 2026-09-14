@@ -13,10 +13,12 @@ public sealed class GitHubActionEventHandler(
     IEnumerable<IGitHubActionDetector> detectors,
     ILogger<GitHubActionEventHandler> logger,
     IActionChangeBroadcaster? broadcaster = null,
-    AutomationRuleEvaluator? ruleEvaluator = null)
+    AutomationRuleEvaluator? ruleEvaluator = null,
+    AgentClassifier? agentClassifier = null)
     : IGitHubActionEventHandler
 {
     private readonly IReadOnlyList<IGitHubActionDetector> detectors = OrderDetectors(detectors);
+    private readonly AgentClassifier agentClassifier = agentClassifier ?? new AgentClassifier(new AgentDetectionOptions());
 
     /// <inheritdoc />
     /// <exception cref="InvalidOperationException">
@@ -230,7 +232,7 @@ public sealed class GitHubActionEventHandler(
         return actionChanged;
     }
 
-    private static async Task ApplyFilterMetadataAsync(
+    private async Task ApplyFilterMetadataAsync(
         NeedlyDbContext dbContext,
         GitHubStoredEvent storedEvent,
         IReadOnlyList<NeedlyAction> actions,
@@ -262,6 +264,10 @@ public sealed class GitHubActionEventHandler(
                 action.UpdateFilterMetadata(
                     state?.AuthorLogin,
                     IsBot(state?.AuthorLogin, null) || IsBot(payload?.Sender?.Login, payload?.Sender?.Type));
+                // Schema version 3 agent identity (issue #35). The stored pull request state does not
+                // carry a "type" or App slug, only the login, matching IsBot's own fallback above.
+                var noPayloadAgentIdentity = agentClassifier.Classify(state?.AuthorLogin, null, null);
+                action.UpdateAgentAuthor(noPayloadAgentIdentity?.Key, noPayloadAgentIdentity?.DisplayName);
                 // This event's payload carries no pull_request/issue object (e.g. a check event), so
                 // there is no fresher label/milestone/draft/size data than what is already stored.
                 action.UpdateSubjectMetadata(
@@ -276,6 +282,11 @@ public sealed class GitHubActionEventHandler(
             action.UpdateFilterMetadata(
                 author?.Login,
                 IsBot(author?.Login, author?.Type) || IsBot(payload?.Sender?.Login, payload?.Sender?.Type));
+            // Schema version 3 agent identity (issue #35). Classified from the subject author only (not
+            // the event sender), since this identifies who authored the pull request or issue, not who
+            // triggered the current event.
+            var agentIdentity = agentClassifier.Classify(author?.Login, author?.Type, appSlug: null);
+            action.UpdateAgentAuthor(agentIdentity?.Key, agentIdentity?.DisplayName);
 
             var labels = payloadLabels?.Select(label => label.Name).ToArray() ?? action.Labels;
             var milestone = payloadMilestone?.Title ?? action.Milestone;
