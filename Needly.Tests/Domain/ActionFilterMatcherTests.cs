@@ -18,7 +18,10 @@ public sealed class ActionFilterMatcherTests
         IsDraft: true,
         SizeBucket: ActionSizeBucket.M,
         Milestone: "v2",
-        RequestedViaCodeowners: true);
+        RequestedViaCodeowners: true,
+        Title: "Add retry logic to the webhook dispatcher",
+        Reason: "Review requested on pull request #42",
+        Context: "Blocked on CI failures in the auth middleware");
 
     [Fact]
     public void IsMatch_EmptyFilter_MatchesAnyCandidate()
@@ -159,7 +162,8 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { IsDraft = DraftFilter.OnlyDrafts },
         new ActionFilter { SizeBuckets = [ActionSizeBucket.M] },
         new ActionFilter { Milestones = ["V2"] },
-        new ActionFilter { RequestedViaCodeowners = CodeownersFilter.OnlyRequested }
+        new ActionFilter { RequestedViaCodeowners = CodeownersFilter.OnlyRequested },
+        new ActionFilter { FreeText = "retry logic" }
     };
 
     public static TheoryData<ActionFilter> MismatchedCriterionFilters => new()
@@ -176,6 +180,49 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { IsDraft = DraftFilter.ExcludeDrafts },
         new ActionFilter { SizeBuckets = [ActionSizeBucket.XL] },
         new ActionFilter { Milestones = ["v3"] },
-        new ActionFilter { RequestedViaCodeowners = CodeownersFilter.ExcludeRequested }
+        new ActionFilter { RequestedViaCodeowners = CodeownersFilter.ExcludeRequested },
+        new ActionFilter { FreeText = "does not appear anywhere" }
     };
+
+    [Theory]
+    [InlineData("retry logic")]
+    [InlineData("RETRY LOGIC")]
+    [InlineData("webhook dispatcher")]
+    public void IsMatch_FreeTextMatchingTitle_IsCaseInsensitiveSubstring(string freeText)
+    {
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { FreeText = freeText }, Candidate));
+    }
+
+    [Fact]
+    public void IsMatch_FreeTextMatchingReason_Matches()
+    {
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { FreeText = "pull request #42" }, Candidate));
+    }
+
+    [Fact]
+    public void IsMatch_FreeTextMatchingContext_Matches()
+    {
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { FreeText = "auth middleware" }, Candidate));
+    }
+
+    [Fact]
+    public void IsMatch_FreeTextNotFoundInTitleReasonOrContext_DoesNotMatch()
+    {
+        Assert.False(ActionFilterMatcher.IsMatch(new ActionFilter { FreeText = "nonexistent phrase" }, Candidate));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void IsMatch_NullOrEmptyFreeText_MatchesAnyCandidate(string? freeText)
+    {
+        Assert.True(ActionFilterMatcher.IsMatch(new ActionFilter { FreeText = freeText }, Candidate));
+    }
+
+    [Fact]
+    public void IsMatch_FreeTextWithNullTitleReasonAndContext_DoesNotMatch()
+    {
+        var candidate = Candidate with { Title = null, Reason = null, Context = null };
+        Assert.False(ActionFilterMatcher.IsMatch(new ActionFilter { FreeText = "retry" }, candidate));
+    }
 }

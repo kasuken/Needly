@@ -149,6 +149,16 @@ public sealed record ActionFilter
 
     /// <summary>Gets the CODEOWNERS review-request criterion.</summary>
     public CodeownersFilter RequestedViaCodeowners { get; init; }
+
+    // Added for issue #24 (inbox search). Kept as a minimal, standalone addition so this
+    // does not conflict with the enriched-filter work for issue #32 above.
+    /// <summary>Gets the free-text search term, or <see langword="null"/> for no free-text criterion.</summary>
+    /// <remarks>
+    /// Matched as a case-insensitive substring against the subject title, reason and context
+    /// (see <see cref="ActionFilterCandidate.Title"/>, <see cref="ActionFilterCandidate.Reason"/> and
+    /// <see cref="ActionFilterCandidate.Context"/>) by <see cref="ActionFilterMatcher"/>.
+    /// </remarks>
+    public string? FreeText { get; init; }
 }
 
 /// <summary>Contains the action and viewer facts consumed by <see cref="ActionFilterMatcher"/>.</summary>
@@ -165,6 +175,9 @@ public sealed record ActionFilter
 /// <param name="SizeBucket">The pull request size bucket, or null when not applicable or unknown.</param>
 /// <param name="Milestone">The subject milestone title, when known.</param>
 /// <param name="RequestedViaCodeowners">Whether the review was requested through CODEOWNERS.</param>
+/// <param name="Title">The subject title, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
+/// <param name="Reason">The action reason text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
+/// <param name="Context">Additional context text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
 public sealed record ActionFilterCandidate(
     ActionType Type,
     ActionState State,
@@ -178,7 +191,10 @@ public sealed record ActionFilterCandidate(
     bool? IsDraft,
     ActionSizeBucket? SizeBucket,
     string? Milestone,
-    bool RequestedViaCodeowners);
+    bool RequestedViaCodeowners,
+    string? Title = null,
+    string? Reason = null,
+    string? Context = null);
 
 /// <summary>Applies the shared saved-view and rule filter semantics to action facts.</summary>
 public static class ActionFilterMatcher
@@ -225,7 +241,9 @@ public static class ActionFilterMatcher
                 CodeownersFilter.OnlyRequested => candidate.RequestedViaCodeowners,
                 CodeownersFilter.ExcludeRequested => !candidate.RequestedViaCodeowners,
                 _ => false
-            };
+            } &&
+            // Added for issue #24 (inbox search).
+            MatchesFreeText(filter.FreeText, candidate);
     }
 
     private static bool Contains<T>(IReadOnlyCollection<T> accepted, T value)
@@ -239,4 +257,15 @@ public static class ActionFilterMatcher
     private static bool ContainsAny(IReadOnlyCollection<string> accepted, IReadOnlyCollection<string> values) =>
         accepted.Count == 0 ||
         values.Any(value => accepted.Contains(value, StringComparer.OrdinalIgnoreCase));
+
+    // Added for issue #24 (inbox search): case-insensitive substring match against title, reason and
+    // context. A null or empty FreeText criterion matches everything, consistent with the other criteria.
+    private static bool MatchesFreeText(string? freeText, ActionFilterCandidate candidate) =>
+        string.IsNullOrEmpty(freeText) ||
+        ContainsIgnoreCase(candidate.Title, freeText) ||
+        ContainsIgnoreCase(candidate.Reason, freeText) ||
+        ContainsIgnoreCase(candidate.Context, freeText);
+
+    private static bool ContainsIgnoreCase(string? haystack, string needle) =>
+        haystack is not null && haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
 }

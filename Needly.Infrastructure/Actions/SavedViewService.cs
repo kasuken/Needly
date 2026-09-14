@@ -159,7 +159,7 @@ public sealed class SavedViewService(
     }
 
     private static int CountMatches(IReadOnlyList<VisibleAction> actions, ActionFilter filter) =>
-        actions.Count(action => ActionFilterMatcher.IsMatch(filter, VisibleActionFilterCandidate.Create(action)));
+        actions.Count(action => ActionFilterMatcher.IsMatch(filter, VisibleActionTextCandidateFactory.CreateWithText(action)));
 
     private static async Task EnsureUniqueNameAsync(
         NeedlyDbContext dbContext,
