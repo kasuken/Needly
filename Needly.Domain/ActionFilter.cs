@@ -104,7 +104,7 @@ public static class ActionSizeBucketClassifier
 public sealed record ActionFilter
 {
     /// <summary>Gets the current serialized filter schema version.</summary>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>Gets the serialized filter schema version.</summary>
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
@@ -159,6 +159,16 @@ public sealed record ActionFilter
     /// <see cref="ActionFilterCandidate.Context"/>) by <see cref="ActionFilterMatcher"/>.
     /// </remarks>
     public string? FreeText { get; init; }
+
+    // Schema version 3 additions (issue #35). Kept as a separate block, appended after the criteria
+    // above, to avoid reformatting or reordering existing members. Issue #34 (review risk), running
+    // concurrently in another branch, also bumps CurrentSchemaVersion to 3 and appends its own
+    // candidate field here; the two additions are independent and expected to land side by side.
+    /// <summary>
+    /// Gets the accepted agent/bot identity keys (see <see cref="NeedlyAction.AgentAuthor"/>), or an
+    /// empty collection for any agent involvement, matched with OR semantics like <see cref="Labels"/>.
+    /// </summary>
+    public string[] AgentAuthors { get; init; } = [];
 }
 
 /// <summary>Contains the action and viewer facts consumed by <see cref="ActionFilterMatcher"/>.</summary>
@@ -178,6 +188,11 @@ public sealed record ActionFilter
 /// <param name="Title">The subject title, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
 /// <param name="Reason">The action reason text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
 /// <param name="Context">Additional context text, used to match <see cref="ActionFilter.FreeText"/>. Added for issue #24.</param>
+/// <param name="AgentAuthor">
+/// The detected agent/bot identity key, or null when no bot involvement is detected. Added for issue #35
+/// (schema version 3) as a trailing optional parameter, defaulted to null, so existing call sites did not
+/// need to change.
+/// </param>
 public sealed record ActionFilterCandidate(
     ActionType Type,
     ActionState State,
@@ -194,7 +209,8 @@ public sealed record ActionFilterCandidate(
     bool RequestedViaCodeowners,
     string? Title = null,
     string? Reason = null,
-    string? Context = null);
+    string? Context = null,
+    string? AgentAuthor = null);
 
 /// <summary>Applies the shared saved-view and rule filter semantics to action facts.</summary>
 public static class ActionFilterMatcher
@@ -242,6 +258,9 @@ public static class ActionFilterMatcher
                 CodeownersFilter.ExcludeRequested => !candidate.RequestedViaCodeowners,
                 _ => false
             } &&
+            // Schema version 3 additions (issue #35). Kept as a separate block, appended after the
+            // version 2 criteria above, to avoid reformatting or reordering existing logic.
+            Contains(filter.AgentAuthors, candidate.AgentAuthor) &&
             // Added for issue #24 (inbox search).
             MatchesFreeText(filter.FreeText, candidate);
     }

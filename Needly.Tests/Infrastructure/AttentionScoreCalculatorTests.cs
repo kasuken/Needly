@@ -34,6 +34,8 @@ public sealed class AttentionScoreCalculatorTests
         IsDraft: null,
         SizeBucket: null,
         Milestone: null,
+        AgentAuthor: null,
+        AgentDisplayName: null,
         RequestedViaCodeowners: false);
 
     private static AttentionScoreCalculator CreateCalculator(AttentionScoreOptions? options = null) =>

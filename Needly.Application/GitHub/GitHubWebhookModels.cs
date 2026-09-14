@@ -80,7 +80,10 @@ public sealed record VisibleAction(
     bool? IsDraft,
     ActionSizeBucket? SizeBucket,
     string? Milestone,
-    bool RequestedViaCodeowners);
+    bool RequestedViaCodeowners,
+    // Schema version 3 additions (issue #35).
+    string? AgentAuthor,
+    string? AgentDisplayName);
 
 /// <summary>Creates shared filter candidates from authorized inbox projections.</summary>
 public static class VisibleActionFilterCandidate
@@ -102,7 +105,8 @@ public static class VisibleActionFilterCandidate
             action.IsDraft,
             action.SizeBucket,
             action.Milestone,
-            action.RequestedViaCodeowners);
+            action.RequestedViaCodeowners,
+            AgentAuthor: action.AgentAuthor);
     }
 }
 

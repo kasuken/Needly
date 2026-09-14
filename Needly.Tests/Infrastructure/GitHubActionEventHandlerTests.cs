@@ -77,6 +77,110 @@ public sealed class GitHubActionEventHandlerTests
         Assert.Equal(3, await verification.ActionEventReceipts.CountAsync());
     }
 
+    // Schema version 3 additions (issue #35).
+    [Fact]
+    public async Task HandleAsync_PullRequestPayloadWithKnownBotAuthor_PersistsSpecificAgentIdentity()
+    {
+        await using var database = await ActionEngineTestDatabase.CreateAsync();
+        await SeedDependenciesAsync(database.Context);
+        var detector = new SyntheticDetector(
+            "synthetic.agent-identity",
+            10,
+            (context, _) => Task.FromResult<IReadOnlyList<GitHubActionOperation>>(
+                [CreateOperation("Bump dependency", context.Event.ReceivedAt)]));
+        var handler = CreateHandler(database, detector);
+        const string payloadJson = """
+            {
+              "pull_request": {
+                "number": 42,
+                "html_url": "https://github.com/octocat/needly/pull/42",
+                "title": "Bump dependency",
+                "draft": false,
+                "merged": false,
+                "user": { "id": 900, "login": "dependabot[bot]", "type": "Bot" },
+                "head": { "sha": "abc123" }
+              }
+            }
+            """;
+
+        var storedEvent = await AddEventAsync(database.Context, "opened", 1, payloadJson: payloadJson);
+        await handler.HandleAsync(storedEvent, CancellationToken.None);
+
+        var persisted = await database.Context.Actions.AsNoTracking().SingleAsync();
+        Assert.True(persisted.HasBotInvolvement);
+        Assert.Equal("dependabot[bot]", persisted.AuthorLogin);
+        Assert.Equal("dependabot", persisted.AgentAuthor);
+        Assert.Equal("Dependabot", persisted.AgentDisplayName);
+    }
+
+    [Fact]
+    public async Task HandleAsync_PullRequestPayloadWithUnrecognizedBotAuthor_FallsBackToOtherBot()
+    {
+        await using var database = await ActionEngineTestDatabase.CreateAsync();
+        await SeedDependenciesAsync(database.Context);
+        var detector = new SyntheticDetector(
+            "synthetic.agent-identity-fallback",
+            10,
+            (context, _) => Task.FromResult<IReadOnlyList<GitHubActionOperation>>(
+                [CreateOperation("Automated change", context.Event.ReceivedAt)]));
+        var handler = CreateHandler(database, detector);
+        const string payloadJson = """
+            {
+              "pull_request": {
+                "number": 42,
+                "html_url": "https://github.com/octocat/needly/pull/42",
+                "title": "Automated change",
+                "draft": false,
+                "merged": false,
+                "user": { "id": 900, "login": "some-unknown-tool[bot]", "type": "Bot" },
+                "head": { "sha": "abc123" }
+              }
+            }
+            """;
+
+        var storedEvent = await AddEventAsync(database.Context, "opened", 1, payloadJson: payloadJson);
+        await handler.HandleAsync(storedEvent, CancellationToken.None);
+
+        var persisted = await database.Context.Actions.AsNoTracking().SingleAsync();
+        Assert.True(persisted.HasBotInvolvement);
+        Assert.Equal("other-bot", persisted.AgentAuthor);
+        Assert.Equal("Other bot", persisted.AgentDisplayName);
+    }
+
+    [Fact]
+    public async Task HandleAsync_PullRequestPayloadWithHumanAuthor_LeavesAgentIdentityNull()
+    {
+        await using var database = await ActionEngineTestDatabase.CreateAsync();
+        await SeedDependenciesAsync(database.Context);
+        var detector = new SyntheticDetector(
+            "synthetic.agent-identity-human",
+            10,
+            (context, _) => Task.FromResult<IReadOnlyList<GitHubActionOperation>>(
+                [CreateOperation("Human change", context.Event.ReceivedAt)]));
+        var handler = CreateHandler(database, detector);
+        const string payloadJson = """
+            {
+              "pull_request": {
+                "number": 42,
+                "html_url": "https://github.com/octocat/needly/pull/42",
+                "title": "Human change",
+                "draft": false,
+                "merged": false,
+                "user": { "id": 900, "login": "octocat" },
+                "head": { "sha": "abc123" }
+              }
+            }
+            """;
+
+        var storedEvent = await AddEventAsync(database.Context, "opened", 1, payloadJson: payloadJson);
+        await handler.HandleAsync(storedEvent, CancellationToken.None);
+
+        var persisted = await database.Context.Actions.AsNoTracking().SingleAsync();
+        Assert.False(persisted.HasBotInvolvement);
+        Assert.Null(persisted.AgentAuthor);
+        Assert.Null(persisted.AgentDisplayName);
+    }
+
     [Fact]
     public async Task HandleAsync_DetectorsRegisteredOutOfOrder_InvokesByOrderThenKey()
     {
@@ -597,7 +701,8 @@ public sealed class GitHubActionEventHandlerTests
         NeedlyDbContext context,
         string action,
         int minutes,
-        bool includeForeignKeys = true)
+        bool includeForeignKeys = true,
+        string payloadJson = "{}")
     {
         var eventId = Guid.NewGuid();
         var occurredAt = TestData.CreatedAt.AddMinutes(minutes);
@@ -610,7 +715,7 @@ public sealed class GitHubActionEventHandlerTests
             $"delivery-{eventId:N}",
             "pull_request",
             action,
-            "{}",
+            payloadJson,
             occurredAt);
         context.RawEvents.Add(rawEvent);
         await context.SaveChangesAsync();

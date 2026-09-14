@@ -91,6 +91,18 @@ public static class ServiceCollectionExtensions
             .Validate(
                 options => options.Labels.Count > 0,
                 "Decide:Labels must contain at least one label.");
+        // Added for issue #35 (agent-authored pull request detection).
+        services.AddOptions<AgentDetectionOptions>()
+            .Validate(
+                options => options.Rules.All(rule =>
+                    !string.IsNullOrWhiteSpace(rule.Key) && !string.IsNullOrWhiteSpace(rule.DisplayName)),
+                "AgentDetection:Rules entries must each have a Key and DisplayName.")
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.OtherBotKey) &&
+                    !string.IsNullOrWhiteSpace(options.OtherBotDisplayName),
+                "AgentDetection:OtherBotKey and OtherBotDisplayName must be set.");
+        services.AddSingleton(provider =>
+            new AgentClassifier(provider.GetRequiredService<IOptions<AgentDetectionOptions>>().Value));
         services.AddOptions<AttentionScoreOptions>()
             .Validate(
                 options => options.WaitingTiers.All(tier => tier.AtLeast > TimeSpan.Zero),
