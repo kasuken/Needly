@@ -34,11 +34,13 @@ Needly durably tracks each reviewer's latest `CHANGES_REQUESTED`, `APPROVED`, or
 
 ### Ready-to-merge evaluation
 
-Needly refreshes pull request, review, commit-status, and check-run state through an installation-authenticated GitHub REST client when a relevant webhook may have changed merge readiness. A Merge action is assigned only to the stored pull request author when the pull request is open and not a draft, the configured approval threshold is met, no reviewer's latest submitted review requests changes, all reported latest-head statuses and check runs are complete and successful, and GitHub reports the pull request mergeable without conflicts.
+Needly refreshes pull request, review, commit-status, and check-run state through an installation-authenticated GitHub REST client when a relevant webhook may have changed merge readiness. A Merge action is assigned only to the stored pull request author when the pull request is open and not a draft, the configured approval threshold is met, no reviewer's latest submitted review requests changes, no latest-head status or check run is pending or failing, and GitHub reports the pull request mergeable without conflicts. Merge readiness is evaluated for historical bootstrap events too, so pull requests that were already open when an installation was connected are covered rather than waiting for their next live webhook.
 
-`GitHubActions:RequiredApprovals` defaults to `1` and is validated in the inclusive range `1..100`. This is a conservative repository-independent default; set it to match the repository's branch-protection policy. Incomplete API snapshots retract a Merge action. Transient HTTP failures fail the webhook transaction so the existing action state is preserved and normal webhook retry applies.
+`GitHubActions:RequiredApprovals` defaults to `1` and is validated in the inclusive range `1..100`. This is a conservative repository-independent default; set it to match the repository's branch-protection policy. Incomplete API snapshots retract a Merge action.
 
-The REST lookup currently reads the first 100 reviews, commit statuses, and check runs. Repositories whose pull requests exceed one of those collections need pagination before the snapshot is authoritative. GitHub's REST responses also do not identify which checks are branch-protection requirements, so Needly requires every reported latest-head check to pass and requires at least one reported status or check run.
+The approval threshold does not apply to a pull request nobody else can review: one whose author is also the repository owner (the repository owner login and the author login are the same account, compared case-insensitively), with no reviewer or team requested and no review submitted by anyone but the author. Such a pull request has no reviewer who could ever supply an approval, so holding it below the threshold would keep it permanently invisible rather than merely unapproved. Requesting a reviewer, or any submitted review, puts the configured threshold back in force; every other merge-readiness condition still applies. The `Ready in my repos` built-in Saved View and the `selfOwnedRepository` filter criterion (see [docs/saved-views-and-rules.md](saved-views-and-rules.md)) isolate this work from team repositories. Transient HTTP failures fail the webhook transaction so the existing action state is preserved and normal webhook retry applies.
+
+The REST lookup currently reads the first 100 reviews, commit statuses, and check runs. Repositories whose pull requests exceed one of those collections need pagination before the snapshot is authoritative. GitHub's REST responses also do not identify which checks are branch-protection requirements, so Needly requires every reported latest-head check to pass. A head commit that reports no statuses and no check runs at all is treated as "no CI configured" rather than as a failure, because the alternative made merge readiness unreachable for every repository without CI.
 
 ### Respond action coalescing
 
@@ -123,7 +125,7 @@ The non-secret processing settings have defaults in `appsettings.json` and can b
 | `GitHubApp:WebhookMaxPayloadBytes` | `1048576` | Maximum raw request body size (hard validation limit: 10 MiB). |
 | `GitHubApp:WebhookQueueCapacity` | `1024` | Bounded in-process channel capacity. |
 | `GitHubApp:WebhookMaxAttempts` | `5` | Maximum transient processing attempts. |
-| `GitHubActions:RequiredApprovals` | `1` | Minimum latest-review approvals required for a Merge action. |
+| `GitHubActions:RequiredApprovals` | `1` | Minimum latest-review approvals required for a Merge action. Waived for pull requests nobody else can review (see [Ready-to-merge evaluation](#ready-to-merge-evaluation)). |
 | `ActionRisk:ReviewWaitingThreshold` | `08:00:00` | Review actions become at risk only after waiting more than eight hours. |
 | `ActionRisk:InactivityThreshold` | `3.00:00:00` | Any open action becomes at risk only after more than three days without activity. |
 | `ActionRisk:EvaluationInterval` | `00:15:00` | Period between open-action risk evaluations. |

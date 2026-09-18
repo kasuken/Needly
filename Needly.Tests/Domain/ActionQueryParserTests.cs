@@ -260,6 +260,44 @@ public sealed class ActionQueryParserTests
     }
 
     [Theory]
+    [InlineData("self-owned:true", SelfOwnedRepositoryFilter.OnlySelfOwned)]
+    [InlineData("self-owned:false", SelfOwnedRepositoryFilter.ExcludeSelfOwned)]
+    [InlineData("NOT self-owned:true", SelfOwnedRepositoryFilter.ExcludeSelfOwned)]
+    [InlineData("NOT self-owned:false", SelfOwnedRepositoryFilter.OnlySelfOwned)]
+    [InlineData("self-owned:true AND self-owned:true", SelfOwnedRepositoryFilter.OnlySelfOwned)]
+    [InlineData("self-owned:true OR self-owned:true", SelfOwnedRepositoryFilter.OnlySelfOwned)]
+    public void Parse_SelfOwned_CompilesToTheMatchingCriterion(string query, SelfOwnedRepositoryFilter expected)
+    {
+        var result = ActionQueryParser.Parse(query);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(expected, result.Filter!.SelfOwnedRepository);
+    }
+
+    [Fact]
+    public void Parse_SelfOwnedCombinedWithOtherQualifiers_AndsTheCriteriaTogether()
+    {
+        var result = ActionQueryParser.Parse("is:merge state:open self-owned:true");
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal([ActionType.Merge], result.Filter!.Types);
+        Assert.Equal([ActionState.Open], result.Filter.States);
+        Assert.Equal(SelfOwnedRepositoryFilter.OnlySelfOwned, result.Filter.SelfOwnedRepository);
+    }
+
+    [Theory]
+    [InlineData("self-owned:maybe")]
+    [InlineData("self-owned:true AND self-owned:false")]
+    [InlineData("self-owned:true OR self-owned:false")]
+    public void Parse_UnsupportedSelfOwnedUsage_ReportsASpecificError(string query)
+    {
+        var result = ActionQueryParser.Parse(query);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("self-owned:", result.Error);
+    }
+
+    [Theory]
     [InlineData("state:open", ActionState.Open)]
     [InlineData("state:Snoozed", ActionState.Snoozed)]
     [InlineData("state:DONE", ActionState.Done)]

@@ -44,7 +44,8 @@ public sealed class ActionQueryParseResult
 /// <remarks>
 /// <para><b>Supported syntax</b>: qualifiers <c>repo:owner/name</c>, <c>org:name</c>, <c>author:login</c>,
 /// <c>is:&lt;type&gt;</c>, <c>state:&lt;state&gt;</c>, <c>waiting:&gt;Nd</c> (comparison + duration),
-/// <c>bot:true|false</c>; boolean composition with <c>AND</c>, <c>OR</c>, <c>NOT</c> (case-insensitive) and
+/// <c>bot:true|false</c>, <c>self-owned:true|false</c> (whether the subject author also owns the repository);
+/// boolean composition with <c>AND</c>, <c>OR</c>, <c>NOT</c> (case-insensitive) and
 /// parentheses; bare words and <c>"quoted phrases"</c> become free-text terms. Adjacent terms with no explicit
 /// operator are implicitly ANDed, e.g. <c>repo:a is:review</c> means <c>repo:a AND is:review</c>.</para>
 ///
@@ -402,7 +403,7 @@ public static class ActionQueryParser
     //          swapped. Everything else (unbounded string fields, Waiting, FreeText, or a multi-field operand)
     //          is the documented ceiling and is reported as a parse error.
 
-    private enum FieldKind { Types, States, Repositories, Organizations, Authors, Bot, Waiting, FreeText }
+    private enum FieldKind { Types, States, Repositories, Organizations, Authors, Bot, Waiting, FreeText, SelfOwned }
 
     private sealed class Fragment
     {
@@ -414,6 +415,7 @@ public static class ActionQueryParser
         public BotInvolvementFilter? Bot { get; init; }
         public TimeSpan? Waiting { get; init; }
         public List<string>? FreeTextTerms { get; init; }
+        public SelfOwnedRepositoryFilter? SelfOwned { get; init; }
 
         public HashSet<FieldKind> TouchedFields()
         {
@@ -426,6 +428,7 @@ public static class ActionQueryParser
             if (Bot is not null) touched.Add(FieldKind.Bot);
             if (Waiting is not null) touched.Add(FieldKind.Waiting);
             if (FreeTextTerms is { Count: > 0 }) touched.Add(FieldKind.FreeText);
+            if (SelfOwned is not null) touched.Add(FieldKind.SelfOwned);
             return touched;
         }
     }
@@ -451,8 +454,10 @@ public static class ActionQueryParser
             "state" => new Fragment { States = [ParseActionState(node.Value, node.Position)] },
             "bot" => new Fragment { Bot = ParseBot(node.Value, node.Position) },
             "waiting" => new Fragment { Waiting = ParseWaiting(node.Value, node.Position) },
+            "self-owned" => new Fragment { SelfOwned = ParseSelfOwned(node.Value, node.Position) },
             _ => throw new QueryParseException(
-                $"Unknown qualifier '{node.Key}:'. Supported qualifiers: repo, org, author, is, state, waiting, bot.",
+                $"Unknown qualifier '{node.Key}:'. Supported qualifiers: repo, org, author, is, state, waiting, " +
+                "bot, self-owned.",
                 node.Position)
         };
     }
@@ -466,7 +471,8 @@ public static class ActionQueryParser
         Authors = IntersectOrKeep(left.Authors, right.Authors, "author", position),
         Bot = MergeBotAnd(left.Bot, right.Bot, position),
         Waiting = MaxOrKeep(left.Waiting, right.Waiting),
-        FreeTextTerms = ConcatOrKeep(left.FreeTextTerms, right.FreeTextTerms)
+        FreeTextTerms = ConcatOrKeep(left.FreeTextTerms, right.FreeTextTerms),
+        SelfOwned = MergeSelfOwnedAnd(left.SelfOwned, right.SelfOwned, position)
     };
 
     private static Fragment MergeOr(Fragment left, Fragment right, int position)
@@ -502,6 +508,11 @@ public static class ActionQueryParser
                 "Free-text terms combined with OR cannot be expressed: ActionFilter.FreeText is a single " +
                 "substring field with no alternation.",
                 position),
+            FieldKind.SelfOwned when left.SelfOwned == right.SelfOwned => new Fragment { SelfOwned = left.SelfOwned },
+            FieldKind.SelfOwned => throw new QueryParseException(
+                "'self-owned:' values combined with OR must match (e.g. 'self-owned:true OR self-owned:true'); " +
+                "differing values cannot be expressed as a single self-owned: criterion.",
+                position),
             _ => throw new InvalidOperationException()
         };
     }
@@ -512,8 +523,8 @@ public static class ActionQueryParser
         if (touched.Count != 1)
         {
             throw new QueryParseException(
-                "'NOT' can only negate a single qualifier (one of: is, state, bot); the filter model has no " +
-                "way to negate a combination of different qualifiers or a compound expression.",
+                "'NOT' can only negate a single qualifier (one of: is, state, bot, self-owned); the filter model " +
+                "has no way to negate a combination of different qualifiers or a compound expression.",
                 position);
         }
 
@@ -526,6 +537,12 @@ public static class ActionQueryParser
                 Bot = inner.Bot == BotInvolvementFilter.OnlyBots
                     ? BotInvolvementFilter.ExcludeBots
                     : BotInvolvementFilter.OnlyBots
+            },
+            FieldKind.SelfOwned => new Fragment
+            {
+                SelfOwned = inner.SelfOwned == SelfOwnedRepositoryFilter.OnlySelfOwned
+                    ? SelfOwnedRepositoryFilter.ExcludeSelfOwned
+                    : SelfOwnedRepositoryFilter.OnlySelfOwned
             },
             var field => throw new QueryParseException(
                 $"'{FieldQualifierName(field)}:' cannot be negated with NOT: the filter model only expresses " +
@@ -542,6 +559,7 @@ public static class ActionQueryParser
         FieldKind.Authors => "author",
         FieldKind.Waiting => "waiting",
         FieldKind.FreeText => "free text",
+        FieldKind.SelfOwned => "self-owned",
         _ => field.ToString().ToLowerInvariant()
     };
 
@@ -553,6 +571,7 @@ public static class ActionQueryParser
         Organizations = fragment.Organizations?.ToArray() ?? [],
         Authors = fragment.Authors?.ToArray() ?? [],
         BotInvolvement = fragment.Bot ?? BotInvolvementFilter.Any,
+        SelfOwnedRepository = fragment.SelfOwned ?? SelfOwnedRepositoryFilter.Any,
         WaitingAtLeast = fragment.Waiting,
         FreeText = fragment.FreeTextTerms is { Count: > 0 } terms ? string.Join(' ', terms) : null
     };
@@ -619,6 +638,32 @@ public static class ActionQueryParser
         throw new QueryParseException(
             "'bot:' was given conflicting values combined with AND (e.g. 'bot:true AND bot:false'); a single " +
             "action cannot satisfy both.",
+            position);
+    }
+
+    private static SelfOwnedRepositoryFilter? MergeSelfOwnedAnd(
+        SelfOwnedRepositoryFilter? left,
+        SelfOwnedRepositoryFilter? right,
+        int position)
+    {
+        if (left is null)
+        {
+            return right;
+        }
+
+        if (right is null)
+        {
+            return left;
+        }
+
+        if (left == right)
+        {
+            return left;
+        }
+
+        throw new QueryParseException(
+            "'self-owned:' was given conflicting values combined with AND (e.g. 'self-owned:true AND " +
+            "self-owned:false'); a single action cannot satisfy both.",
             position);
     }
 
@@ -690,6 +735,18 @@ public static class ActionQueryParser
         }
 
         throw new QueryParseException($"Unknown 'bot:' value '{value}'. Expected 'true' or 'false'.", position);
+    }
+
+    private static SelfOwnedRepositoryFilter ParseSelfOwned(string value, int position)
+    {
+        if (bool.TryParse(value, out var flag))
+        {
+            return flag ? SelfOwnedRepositoryFilter.OnlySelfOwned : SelfOwnedRepositoryFilter.ExcludeSelfOwned;
+        }
+
+        throw new QueryParseException(
+            $"Unknown 'self-owned:' value '{value}'. Expected 'true' or 'false'.",
+            position);
     }
 
     private static TimeSpan ParseWaiting(string value, int position)

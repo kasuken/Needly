@@ -176,7 +176,9 @@ public sealed record GitHubPullRequestReadiness(
     GitHubCheckState CheckState,
     bool? IsMergeable,
     bool HasConflicts,
-    DateTimeOffset ObservedAt);
+    DateTimeOffset ObservedAt,
+    int RequestedReviewerCount = 0,
+    int ReviewCount = 0);
 
 /// <summary>Identifies an action independently of its persistence representation.</summary>
 public sealed record GitHubActionTarget(

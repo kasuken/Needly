@@ -32,7 +32,7 @@ internal static class ActionFilterJsonSerializer
     private static ActionFilter Normalize(ActionFilter filter)
     {
         ArgumentNullException.ThrowIfNull(filter);
-        if (filter.SchemaVersion is not (1 or 2 or ActionFilter.CurrentSchemaVersion))
+        if (filter.SchemaVersion is not (1 or 2 or 3 or ActionFilter.CurrentSchemaVersion))
         {
             throw new InvalidDataException(
                 $"Action filter schema version {filter.SchemaVersion} is not supported.");
@@ -52,7 +52,8 @@ internal static class ActionFilterJsonSerializer
         var states = Required(filter.States, nameof(filter.States));
         if (types.Any(type => !Enum.IsDefined(type)) || states.Any(state => !Enum.IsDefined(state)) ||
             !Enum.IsDefined(filter.AssigneeScope) || !Enum.IsDefined(filter.BotInvolvement) ||
-            !Enum.IsDefined(filter.IsDraft) || !Enum.IsDefined(filter.RequestedViaCodeowners))
+            !Enum.IsDefined(filter.IsDraft) || !Enum.IsDefined(filter.RequestedViaCodeowners) ||
+            !Enum.IsDefined(filter.SelfOwnedRepository))
         {
             throw new InvalidDataException("The action filter contains an unsupported option.");
         }
@@ -73,6 +74,10 @@ internal static class ActionFilterJsonSerializer
         // (an empty array). Issue #35, running concurrently, also bumps to schema version 3 and
         // upgrades its own new field here in the same way.
         var isPreVersion3 = filter.SchemaVersion is 1 or 2;
+
+        // Versions 1 through 3 predate the schema version 4 SelfOwnedRepository criterion below. Their
+        // JSON never contains it, so the deserializer already defaults it to "no constraint" (Any).
+        var isBeforeVersion4 = filter.SchemaVersion < 4;
         var riskLevels = Required(filter.RiskLevels, nameof(filter.RiskLevels));
         if (riskLevels.Any(level => !Enum.IsDefined(level)))
         {
@@ -92,7 +97,9 @@ internal static class ActionFilterJsonSerializer
             Milestones = isLegacyVersion1 ? [] : NormalizeNames(filter.Milestones, nameof(filter.Milestones)),
             RiskLevels = isPreVersion3 ? [] : riskLevels.Distinct().Order().ToArray(),
             // Schema version 3 addition (issue #35).
-            AgentAuthors = isBeforeVersion3 ? [] : NormalizeNames(filter.AgentAuthors, nameof(filter.AgentAuthors))
+            AgentAuthors = isBeforeVersion3 ? [] : NormalizeNames(filter.AgentAuthors, nameof(filter.AgentAuthors)),
+            // Schema version 4 addition: self-owned repository criterion.
+            SelfOwnedRepository = isBeforeVersion4 ? SelfOwnedRepositoryFilter.Any : filter.SelfOwnedRepository
         };
     }
 
