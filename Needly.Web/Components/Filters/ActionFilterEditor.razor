@@ -60,6 +60,13 @@
     @* Schema version 3 additions (issue #35). *@
     <MudTextField T="string" Label="Agent author" Placeholder="dependabot" Immediate="true"
                   Value="@_agentAuthor" ValueChanged="SetAgentAuthorAsync"/>
+    @* Schema version 4 addition: self-owned repositories. *@
+    <MudSelect T="SelfOwnedRepositoryFilter" Label="Repository ownership" Dense="true"
+               Value="@_selfOwned" ValueChanged="SetSelfOwnedAsync">
+        <MudSelectItem Value="SelfOwnedRepositoryFilter.Any">Any</MudSelectItem>
+        <MudSelectItem Value="SelfOwnedRepositoryFilter.OnlySelfOwned">Only my own repositories</MudSelectItem>
+        <MudSelectItem Value="SelfOwnedRepositoryFilter.ExcludeSelfOwned">Exclude my own repositories</MudSelectItem>
+    </MudSelect>
     @* Schema version 3 addition (issue #34). *@
     <MudSelect T="ReviewRiskLevel?" Label="Review risk" Dense="true" Clearable="true"
                Value="@_riskLevel" ValueChanged="SetRiskLevelAsync">
@@ -93,6 +100,9 @@
     // Schema version 3 additions (issue #35).
     private string? _agentAuthor;
 
+    // Schema version 4 addition: self-owned repositories.
+    private SelfOwnedRepositoryFilter _selfOwned;
+
     // Schema version 3 addition (issue #34).
     private ReviewRiskLevel? _riskLevel;
 
@@ -113,6 +123,7 @@
         _codeowners = Value.RequestedViaCodeowners;
         _agentAuthor = Value.AgentAuthors.FirstOrDefault();
         _riskLevel = Value.RiskLevels.FirstOrDefault() is var riskLevel && Value.RiskLevels.Length > 0 ? riskLevel : null;
+        _selfOwned = Value.SelfOwnedRepository;
     }
 
     private Task SetTypeAsync(ActionType? value) { _type = value; return NotifyAsync(); }
@@ -130,6 +141,7 @@
     private Task SetCodeownersAsync(CodeownersFilter value) { _codeowners = value; return NotifyAsync(); }
     private Task SetAgentAuthorAsync(string value) { _agentAuthor = value; return NotifyAsync(); }
     private Task SetRiskLevelAsync(ReviewRiskLevel? value) { _riskLevel = value; return NotifyAsync(); }
+    private Task SetSelfOwnedAsync(SelfOwnedRepositoryFilter value) { _selfOwned = value; return NotifyAsync(); }
 
     private Task NotifyAsync() => ValueChanged.InvokeAsync(new ActionFilter
     {
@@ -147,7 +159,8 @@
         Milestones = Values(_milestone),
         RequestedViaCodeowners = _codeowners,
         AgentAuthors = Values(_agentAuthor),
-        RiskLevels = _riskLevel is { } riskLevel ? [riskLevel] : []
+        RiskLevels = _riskLevel is { } riskLevel ? [riskLevel] : [],
+        SelfOwnedRepository = _selfOwned
     });
 
     private static string[] Values(string? value) => string.IsNullOrWhiteSpace(value) ? [] : [value.Trim()];

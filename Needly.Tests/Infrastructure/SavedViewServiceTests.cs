@@ -23,21 +23,27 @@ public sealed class SavedViewServiceTests
                 Visible(ActionType.Review, ActionAssigneeScope.Me, TimeSpan.FromHours(2)),
                 Visible(ActionType.Fix, ActionAssigneeScope.MyTeam, TimeSpan.FromHours(3)),
                 Visible(ActionType.FollowUp, ActionAssigneeScope.Me, TimeSpan.FromDays(2)),
-                Visible(ActionType.FYI, ActionAssigneeScope.Me, TimeSpan.FromHours(1))
+                Visible(ActionType.FYI, ActionAssigneeScope.Me, TimeSpan.FromHours(1)),
+                // Merge on a repository the author owns: counted only by "Ready in my repos".
+                Visible(ActionType.Merge, ActionAssigneeScope.Me, TimeSpan.FromHours(1), owner: "octocat"),
+                // Merge on a team repository: matches "Needs me" but not "Ready in my repos".
+                Visible(ActionType.Merge, ActionAssigneeScope.Me, TimeSpan.FromHours(1))
             ]
         });
         var service = CreateService(database, inbox);
 
         var views = await service.GetAsync(user.Id, CancellationToken.None);
 
-        Assert.Equal(["Needs me", "Needs my team", "Waiting on others", "FYI"],
+        Assert.Equal(["Needs me", "Needs my team", "Waiting on others", "FYI", "Ready in my repos"],
             views.Select(view => view.Name).ToArray());
-        Assert.Equal([2, 1, 1, 1], views.Select(view => view.OpenCount).ToArray());
+        Assert.Equal([4, 1, 1, 1, 1], views.Select(view => view.OpenCount).ToArray());
         Assert.All(views, view => Assert.True(view.IsBuiltIn));
         Assert.Equal(ActionAssigneeScope.Me, views[0].Filter.AssigneeScope);
         Assert.Equal(ActionAssigneeScope.MyTeam, views[1].Filter.AssigneeScope);
         Assert.Equal(TimeSpan.FromDays(1), views[2].Filter.WaitingAtLeast);
         Assert.Equal([ActionType.FYI, ActionType.Monitor], views[3].Filter.Types);
+        Assert.Equal([ActionType.Merge], views[4].Filter.Types);
+        Assert.Equal(SelfOwnedRepositoryFilter.OnlySelfOwned, views[4].Filter.SelfOwnedRepository);
     }
 
     [Fact]
@@ -165,6 +171,60 @@ public sealed class SavedViewServiceTests
 
         Assert.Equal(ActionFilter.CurrentSchemaVersion, view.Filter.SchemaVersion);
         Assert.Equal(["dependabot", "github-copilot"], view.Filter.AgentAuthors);
+    }
+
+    [Fact]
+    public async Task GetAsync_LegacySchemaVersion3Json_DefaultsSelfOwnedRepositoryToNoConstraint()
+    {
+        await using var database = await ViewTestDatabase.CreateAsync();
+        var user = await SeedUserAsync(database, "first@example.test", 201);
+        const string legacyJson = """
+            {
+              "schemaVersion": 3,
+              "types": ["Merge"],
+              "states": ["Open"],
+              "agentAuthors": ["dependabot"],
+              "riskLevels": ["High"]
+            }
+            """;
+        await using (var context = database.CreateContext())
+        {
+            context.SavedViews.Add(SavedView.Create(
+                Guid.NewGuid(), user.Id, "Legacy v3", legacyJson, 0, TestData.CreatedAt));
+            await context.SaveChangesAsync();
+        }
+
+        var service = CreateService(database, new FakeInboxVisibilityService(
+            new Dictionary<Guid, IReadOnlyList<VisibleAction>>()));
+        var view = Assert.Single(await service.GetAsync(user.Id, CancellationToken.None), item => !item.IsBuiltIn);
+
+        Assert.Equal(ActionFilter.CurrentSchemaVersion, view.Filter.SchemaVersion);
+        Assert.Equal([ActionType.Merge], view.Filter.Types);
+        Assert.Equal(["dependabot"], view.Filter.AgentAuthors);
+        Assert.Equal([ReviewRiskLevel.High], view.Filter.RiskLevels);
+        Assert.Equal(SelfOwnedRepositoryFilter.Any, view.Filter.SelfOwnedRepository);
+    }
+
+    [Fact]
+    public async Task GetAsync_SelfOwnedRepositoryCriterion_RoundTripsThroughStorage()
+    {
+        await using var database = await ViewTestDatabase.CreateAsync();
+        var user = await SeedUserAsync(database, "first@example.test", 201);
+        var service = CreateService(database, new FakeInboxVisibilityService(
+            new Dictionary<Guid, IReadOnlyList<VisibleAction>>()));
+        await service.CreateAsync(
+            user.Id,
+            "Ready in my repos",
+            new ActionFilter
+            {
+                Types = [ActionType.Merge],
+                SelfOwnedRepository = SelfOwnedRepositoryFilter.OnlySelfOwned
+            },
+            CancellationToken.None);
+
+        var view = Assert.Single(await service.GetAsync(user.Id, CancellationToken.None), item => !item.IsBuiltIn);
+
+        Assert.Equal(SelfOwnedRepositoryFilter.OnlySelfOwned, view.Filter.SelfOwnedRepository);
     }
 
     [Fact]

@@ -21,7 +21,11 @@ internal sealed class MergeReadyActionDetector(
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
         if (context.Event.EventName is not ("pull_request" or "pull_request_review" or "pull_request_review_comment" or
-            "check_suite" or "check_run" or "workflow_run"))
+            "check_suite" or "check_run" or "workflow_run") &&
+            context.Event.EventName != GitHubHistoricalEventNames.PullRequest &&
+            context.Event.EventName != GitHubHistoricalEventNames.PullRequestReview &&
+            context.Event.EventName != GitHubHistoricalEventNames.PullRequestReviewComment &&
+            context.Event.EventName != GitHubHistoricalEventNames.CheckRun)
         {
             return [];
         }
@@ -31,7 +35,8 @@ internal sealed class MergeReadyActionDetector(
         foreach (var pullRequestNumber in pullRequestNumbers)
         {
             var existing = await context.State.GetPullRequestAsync(pullRequestNumber, cancellationToken).ConfigureAwait(false);
-            if (context.Event.EventName == "pull_request" && context.Event.Action == "closed")
+            if (context.Event.EventName is "pull_request" or GitHubHistoricalEventNames.PullRequest &&
+                context.Event.Action == "closed")
             {
                 operations.AddRange(ResolveExisting(context, pullRequestNumber, context.Event.ReceivedAt));
                 continue;
@@ -78,20 +83,43 @@ internal sealed class MergeReadyActionDetector(
                 ? readiness.ObservedAt
                 : context.Event.ReceivedAt;
             var target = CreateTarget(readiness.PullRequestNumber, readiness.AuthorGitHubUserId);
-            if (!readiness.IsOpen || readiness.IsDraft || readiness.ApprovalCount < options.RequiredApprovals ||
-                readiness.HasChangesRequested || readiness.CheckState != GitHubCheckState.Passing ||
+
+            // A pull request an author opened in their own personal namespace, with nobody asked to
+            // review it and no review submitted, has no reviewer who could ever supply an approval.
+            // Holding it below RequiredApprovals would keep it permanently invisible rather than
+            // merely unapproved, so the approval requirement does not apply to it. Requesting a
+            // reviewer, or any submitted review, puts the configured requirement back in force.
+            var isUnreviewable = RepositoryOwnership.IsSelfOwned(context.Repository.Owner, readiness.AuthorLogin) &&
+                readiness.RequestedReviewerCount == 0 && readiness.ReviewCount == 0;
+            var requiredApprovals = isUnreviewable ? 0 : options.RequiredApprovals;
+
+            // Unknown means the head commit reported no statuses and no check runs at all, which is
+            // what a repository without CI looks like — that is not a failure, and treating it as one
+            // made merge readiness unreachable for every such repository.
+            var checksBlock = readiness.CheckState is GitHubCheckState.Pending or GitHubCheckState.Failing;
+            if (!readiness.IsOpen || readiness.IsDraft || readiness.ApprovalCount < requiredApprovals ||
+                readiness.HasChangesRequested || checksBlock ||
                 readiness.IsMergeable != true || readiness.HasConflicts)
             {
                 operations.Add(new ResolveGitHubActionOperation(target, occurredAt));
                 continue;
             }
 
+            var approvalSummary = isUnreviewable
+                ? "No review requested; you own the repository"
+                : $"{readiness.ApprovalCount} approval(s)";
+            var checkSummary = readiness.CheckState == GitHubCheckState.Passing
+                ? "all latest-head checks passed."
+                : "no checks are configured for the head commit.";
+            var reason = isUnreviewable
+                ? "The pull request is mergeable without conflicts and nobody else can review it."
+                : "The pull request is approved, green, and mergeable without conflicts.";
             operations.Add(new CreateGitHubActionOperation(
                 target,
                 readiness.Url,
                 $"Merge PR #{readiness.PullRequestNumber}: {readiness.Title}",
-                $"{readiness.ApprovalCount} approval(s); all latest-head checks passed.",
-                "The pull request is approved, green, and mergeable without conflicts.",
+                $"{approvalSummary}; {checkSummary}",
+                reason,
                 occurredAt,
                 ReactivateTerminal: true,
                 Significance: ActionEventSignificance.Significant));
@@ -119,7 +147,7 @@ internal sealed class MergeReadyActionDetector(
         return context.Event.EventName switch
         {
             "check_suite" => payload.CheckSuite?.PullRequests?.Select(item => item.Number).Distinct().ToArray() ?? [],
-            "check_run" => (payload.CheckRun?.PullRequests?.Count > 0
+            "check_run" or GitHubHistoricalEventNames.CheckRun => (payload.CheckRun?.PullRequests?.Count > 0
                     ? payload.CheckRun.PullRequests
                     : payload.CheckRun?.CheckSuite.PullRequests)?
                 .Select(item => item.Number).Distinct().ToArray() ?? [],

@@ -70,6 +70,7 @@ public static class DoneActionFilterCandidate
             SizeBucket: null,
             Milestone: null,
             RequestedViaCodeowners: false,
-            AgentAuthor: null);
+            AgentAuthor: null,
+            IsSelfOwnedRepository: RepositoryOwnership.IsSelfOwned(action.RepositoryOwner, action.AuthorLogin));
     }
 }

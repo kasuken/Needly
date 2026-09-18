@@ -53,6 +53,24 @@ public enum CodeownersFilter
 }
 
 /// <summary>
+/// Controls whether actions whose subject author is also the repository owner are included. A
+/// pull request you opened in your own personal namespace has nobody else who can review it, so
+/// Needly relaxes the approval requirement for it (see the merge-ready detector) and this
+/// criterion lets a view isolate that work from team repositories.
+/// </summary>
+public enum SelfOwnedRepositoryFilter
+{
+    /// <summary>Matches actions regardless of who owns the repository.</summary>
+    Any,
+
+    /// <summary>Matches only actions whose subject author also owns the repository.</summary>
+    OnlySelfOwned,
+
+    /// <summary>Matches only actions whose subject author does not own the repository.</summary>
+    ExcludeSelfOwned
+}
+
+/// <summary>
 /// Buckets a pull request by the total number of changed lines (additions plus deletions).
 /// </summary>
 public enum ActionSizeBucket
@@ -98,6 +116,25 @@ public enum ReviewRiskLevel
     High
 }
 
+/// <summary>
+/// Decides whether a subject sits in its own author's personal namespace, which is the single place
+/// the "self-owned repository" rule is defined for detectors, the inbox and automation rules alike.
+/// </summary>
+public static class RepositoryOwnership
+{
+    /// <summary>
+    /// Determines whether the repository owner login and the subject author login are the same
+    /// account, comparing case-insensitively as GitHub logins are not case sensitive.
+    /// </summary>
+    /// <param name="repositoryOwner">The repository owner login.</param>
+    /// <param name="authorLogin">The subject author login, when known.</param>
+    /// <returns><see langword="true"/> when the author owns the repository.</returns>
+    public static bool IsSelfOwned(string? repositoryOwner, string? authorLogin) =>
+        !string.IsNullOrWhiteSpace(repositoryOwner) &&
+        !string.IsNullOrWhiteSpace(authorLogin) &&
+        string.Equals(repositoryOwner, authorLogin, StringComparison.OrdinalIgnoreCase);
+}
+
 /// <summary>Classifies pull requests into an <see cref="ActionSizeBucket"/> by changed line count.</summary>
 public static class ActionSizeBucketClassifier
 {
@@ -129,7 +166,7 @@ public static class ActionSizeBucketClassifier
 public sealed record ActionFilter
 {
     /// <summary>Gets the current serialized filter schema version.</summary>
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 
     /// <summary>Gets the serialized filter schema version.</summary>
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
@@ -198,6 +235,11 @@ public sealed record ActionFilter
     /// empty collection for any agent involvement, matched with OR semantics like <see cref="Labels"/>.
     /// </summary>
     public string[] AgentAuthors { get; init; } = [];
+
+    // Schema version 4 addition: self-owned repository criterion. Appended after the version 3
+    // criteria above so the existing blocks are untouched.
+    /// <summary>Gets the self-owned repository criterion.</summary>
+    public SelfOwnedRepositoryFilter SelfOwnedRepository { get; init; }
 }
 
 /// <summary>Contains the action and viewer facts consumed by <see cref="ActionFilterMatcher"/>.</summary>
@@ -226,6 +268,12 @@ public sealed record ActionFilter
 /// The pull request's overall review risk level, or null when not applicable (an issue) or not yet
 /// computed. Added for issue #34.
 /// </param>
+/// <param name="IsSelfOwnedRepository">
+/// Whether the subject author also owns the repository — that is, the repository owner login equals
+/// the author login, so the pull request sits in that author's own personal namespace. Added as a
+/// schema version 4 trailing optional parameter, defaulted to false, so existing call sites did not
+/// need to change.
+/// </param>
 public sealed record ActionFilterCandidate(
     ActionType Type,
     ActionState State,
@@ -245,7 +293,9 @@ public sealed record ActionFilterCandidate(
     string? Context = null,
     string? AgentAuthor = null,
     // Schema version 3 addition (issue #34).
-    ReviewRiskLevel? RiskLevel = null);
+    ReviewRiskLevel? RiskLevel = null,
+    // Schema version 4 addition: whether the subject author also owns the repository.
+    bool IsSelfOwnedRepository = false);
 
 /// <summary>Applies the shared saved-view and rule filter semantics to action facts.</summary>
 public static class ActionFilterMatcher
@@ -302,7 +352,16 @@ public static class ActionFilterMatcher
             // version 2 criteria and the issue #24 free-text criterion above, to avoid reformatting or
             // reordering existing logic.
             (filter.RiskLevels.Length == 0 ||
-                (candidate.RiskLevel is { } riskLevel && filter.RiskLevels.Contains(riskLevel)));
+                (candidate.RiskLevel is { } riskLevel && filter.RiskLevels.Contains(riskLevel))) &&
+            // Schema version 4 addition: self-owned repository criterion. Kept as a separate block,
+            // appended after the version 3 criteria above.
+            filter.SelfOwnedRepository switch
+            {
+                SelfOwnedRepositoryFilter.Any => true,
+                SelfOwnedRepositoryFilter.OnlySelfOwned => candidate.IsSelfOwnedRepository,
+                SelfOwnedRepositoryFilter.ExcludeSelfOwned => !candidate.IsSelfOwnedRepository,
+                _ => false
+            };
     }
 
     private static bool Contains<T>(IReadOnlyCollection<T> accepted, T value)
