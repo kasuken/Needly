@@ -172,6 +172,33 @@ public sealed class NeedlyDbContextTests
         Assert.DoesNotContain(openForTeam.Id, actualIds);
     }
 
+    [Fact]
+    public async Task ActionsQuery_LegacyEmptyStringJsonArrayColumns_MaterializesAsEmptyArrays()
+    {
+        await using var database = await SqliteTestDatabase.CreateAsync();
+        var (repository, assignee) = await SeedActionDependenciesAsync(database.Context);
+        var action = TestData.CreateAction(
+            id: Guid.Parse("50000000-0000-0000-0000-000000000001"),
+            repository: repository,
+            assignee: assignee);
+        database.Context.Actions.Add(action);
+        await database.Context.SaveChangesAsync();
+
+        // Reproduce the pre-existing production rows: the Labels and ReviewRiskSignals JSON
+        // columns were added non-nullable with an empty-string default, which the converter
+        // cannot deserialize. Writing "" bypasses the converter used by the change tracker.
+        await database.Context.Database.ExecuteSqlRawAsync(
+            "UPDATE Actions SET Labels = '', ReviewRiskSignals = '' WHERE Id = {0}",
+            action.Id);
+
+        var persisted = await database.Context.Actions
+            .AsNoTracking()
+            .SingleAsync(entity => entity.Id == action.Id);
+
+        Assert.Empty(persisted.Labels);
+        Assert.Empty(persisted.ReviewRiskSignals);
+    }
+
     private static Installation CreateInstallation() =>
         Installation.Create(TestData.InstallationId, 501, "octocat", TestData.CreatedAt);
 
