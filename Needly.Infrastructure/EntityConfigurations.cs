@@ -164,6 +164,14 @@ internal sealed class NeedlyActionConfiguration : IEntityTypeConfiguration<Needl
 {
     private const string ActiveActionFilter = "[State] IN (0, 1)";
 
+    // Tolerates legacy/empty column values: pre-existing rows were backfilled with an
+    // empty string default when these JSON columns were added, and JsonSerializer.Deserialize
+    // throws on "" rather than returning null.
+    private static string[] DeserializeStringArray(string value)
+        => string.IsNullOrWhiteSpace(value)
+            ? Array.Empty<string>()
+            : JsonSerializer.Deserialize<string[]>(value, (JsonSerializerOptions?)null) ?? Array.Empty<string>();
+
     public void Configure(EntityTypeBuilder<NeedlyAction> builder)
     {
         builder.ToTable("Actions");
@@ -190,7 +198,7 @@ internal sealed class NeedlyActionConfiguration : IEntityTypeConfiguration<Needl
         builder.Property(action => action.Labels)
             .HasConversion(
                 value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
-                value => JsonSerializer.Deserialize<string[]>(value, (JsonSerializerOptions?)null) ?? Array.Empty<string>(),
+                value => DeserializeStringArray(value),
                 labelsComparer)
             .HasMaxLength(2000)
             .IsRequired();
@@ -204,7 +212,7 @@ internal sealed class NeedlyActionConfiguration : IEntityTypeConfiguration<Needl
         builder.Property(action => action.ReviewRiskSignals)
             .HasConversion(
                 value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
-                value => JsonSerializer.Deserialize<string[]>(value, (JsonSerializerOptions?)null) ?? Array.Empty<string>(),
+                value => DeserializeStringArray(value),
                 reviewRiskSignalsComparer)
             .HasMaxLength(2000)
             .IsRequired();
