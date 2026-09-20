@@ -14,15 +14,28 @@ public sealed class GitHubSettingsService(NeedlyDbContext dbContext) : IGitHubSe
         Guid needlyUserId,
         CancellationToken cancellationToken)
     {
-        var linkedInstallationIds = await dbContext.UserInstallations
+        // Surface every installation the user can see: those they explicitly connected
+        // through /github/setup (UserInstallations) and those they belong to via an active
+        // installation membership (InstallationMembers). Membership is populated by the
+        // installation webhook and org membership sync, so an org installation stays visible
+        // here even when the /github/setup link was never created — matching how the inbox,
+        // done, and waiting-on-others views already scope visibility.
+        var gitHubUserId = await dbContext.NeedlyUsers
             .AsNoTracking()
-            .Where(link => link.NeedlyUserId == needlyUserId)
-            .Select(link => link.GitHubInstallationId)
-            .ToListAsync(cancellationToken)
+            .Where(user => user.Id == needlyUserId)
+            .Select(user => (Guid?)user.GitHubUserId)
+            .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
         var installations = await dbContext.Installations
             .AsNoTracking()
-            .Where(installation => linkedInstallationIds.Contains(installation.GitHubInstallationId))
+            .Where(installation =>
+                dbContext.UserInstallations.Any(link =>
+                    link.NeedlyUserId == needlyUserId &&
+                    link.GitHubInstallationId == installation.GitHubInstallationId) ||
+                (gitHubUserId != null && dbContext.InstallationMembers.Any(member =>
+                    member.InstallationId == installation.Id &&
+                    member.GitHubUserId == gitHubUserId.Value &&
+                    member.IsActive)))
             .OrderBy(installation => installation.AccountLogin)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
