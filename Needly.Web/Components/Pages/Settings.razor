@@ -6,8 +6,10 @@
 @using Microsoft.Extensions.Options
 @using Needly.Infrastructure.GitHub
 @inject IGitHubSettingsService SettingsService
+@inject IInstallationInventoryService InventoryService
 @inject IOptions<GitHubAppOptions> GitHubOptions
 @inject IOptions<GitHubHistoricalBootstrapOptions> HistoricalBootstrapOptions
+@inject ISnackbar Snackbar
 @inject ILogger<Settings> Logger
 
 <PageTitle>Settings · Needly</PageTitle>
@@ -111,6 +113,25 @@
                                          Color="@StateColor(installation.State)">
                                     @StateLabel(installation.State)
                                 </MudChip>
+                                @if (installation.State == InstallationState.Active)
+                                {
+                                    @if (IsRefreshing(installation))
+                                    {
+                                        <div class="installation-refresh-spinner" aria-label="Refreshing repositories">
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Primary"/>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Refresh repositories from GitHub">
+                                            <span @onclick:stopPropagation="true">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.Refresh"
+                                                               OnClick="() => RefreshAsync(installation)"
+                                                               aria-label="Refresh repositories from GitHub"/>
+                                            </span>
+                                        </MudTooltip>
+                                    }
+                                }
                                 <MudTooltip Text="Configure installation on GitHub">
                                     <MudIconButton Icon="@Icons.Material.Outlined.OpenInNew"
                                                    Href="@ConfigureUrl(installation)"
@@ -209,7 +230,9 @@
 
 @code {
     private readonly CancellationTokenSource _disposeCancellation = new();
+    private readonly HashSet<long> _refreshing = [];
     private GitHubSettings? _settings;
+    private Guid _needlyUserId;
     private bool _loading = true;
     private bool _loadFailed;
 
@@ -248,6 +271,7 @@
                 return;
             }
 
+            _needlyUserId = needlyUserId;
             _settings = await SettingsService.GetAsync(needlyUserId, _disposeCancellation.Token);
         }
         catch (OperationCanceledException) when (_disposeCancellation.IsCancellationRequested)
@@ -271,6 +295,43 @@
     {
         _disposeCancellation.Cancel();
         _disposeCancellation.Dispose();
+    }
+
+    private bool IsRefreshing(InstallationSettingsItem installation) =>
+        _refreshing.Contains(installation.GitHubInstallationId);
+
+    private async Task RefreshAsync(InstallationSettingsItem installation)
+    {
+        if (_needlyUserId == Guid.Empty || !_refreshing.Add(installation.GitHubInstallationId))
+        {
+            return;
+        }
+
+        try
+        {
+            await InventoryService.RefreshRepositoriesAsync(
+                installation.GitHubInstallationId,
+                _disposeCancellation.Token);
+            _settings = await SettingsService.GetAsync(_needlyUserId, _disposeCancellation.Token);
+            Snackbar.Add($"Refreshed repositories for {installation.AccountLogin}.", Severity.Success);
+        }
+        catch (OperationCanceledException) when (_disposeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(
+                exception,
+                "Failed to refresh repositories for installation {GitHubInstallationId}",
+                installation.GitHubInstallationId);
+            Snackbar.Add(
+                $"Could not refresh repositories for {installation.AccountLogin}. Please try again.",
+                Severity.Error);
+        }
+        finally
+        {
+            _refreshing.Remove(installation.GitHubInstallationId);
+        }
     }
 
     private void HandleLoadFailure(Exception exception)

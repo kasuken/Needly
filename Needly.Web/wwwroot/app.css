@@ -637,6 +637,9 @@ h1:focus {
         margin-top: 1.5rem;
     }
 
+    /* Shared management-table styles used by the Rules, Views, and Done pages.
+       These must be global: Blazor CSS isolation would otherwise scope them to a
+       single component and the Done table would fall back to unstyled markup. */
     .management-table-wrap {
         width: 100%;
         overflow-x: auto;
@@ -804,6 +807,13 @@ h1:focus {
         gap: 0.5rem;
     }
 
+    .installation-refresh-spinner {
+        display: grid;
+        width: 2.5rem;
+        height: 2.5rem;
+        place-items: center;
+    }
+
     .installation-state-alert,
     .installation-import-alert {
         margin: 0 1.5rem 1rem;
@@ -838,6 +848,7 @@ h1:focus {
     }
 
     .repository-table th {
+        background: var(--needly-control-background);
         color: var(--mud-palette-text-secondary);
         font-size: 0.75rem;
         font-weight: 600;
