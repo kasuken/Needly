@@ -724,6 +724,13 @@ h1:focus {
         justify-content: flex-end;
     }
 
+    @media (max-width: 599.98px) {
+        .management-table th:nth-child(2),
+        .management-table td:nth-child(2) {
+            display: none;
+        }
+    }
+
     .settings-page-header {
         display: flex;
         max-width: none;
@@ -1156,11 +1163,6 @@ h1:focus {
         .repository-table td:first-child {
             overflow-wrap: anywhere;
             white-space: normal;
-        }
-
-        .management-table th:nth-child(2),
-        .management-table td:nth-child(2) {
-            display: none;
         }
 
         .onboarding-step-panel {

@@ -1,6 +1,6 @@
 # Saved Views and Rules
 
-Saved Views and automation Rules share the same `ActionFilter` matcher. A filter can select action types, states, repositories, organizations, authors, assignment scope, minimum waiting time, bot involvement, labels, pull request draft state, pull request size, milestone, whether the review was requested through CODEOWNERS, and pull request review risk level.
+Saved Views and automation Rules share the same `ActionFilter` matcher. A filter can select action types, states, repositories, organizations, authors, assignment scope, minimum waiting time, bot involvement, labels, pull request draft state, pull request size, milestone, whether the review was requested through CODEOWNERS, pull request review risk level, and whether the subject author also owns the repository.
 
 ## Filter semantics
 
@@ -36,6 +36,16 @@ Saved Views and automation Rules share the same `ActionFilter` matcher. A filter
   known (issues, or pull requests review risk has not been computed for) never matches a non-empty
   `riskLevels` list — including a list that explicitly names `Unknown`, since that still requires a
   computed-but-unavailable classification rather than the complete absence of one.
+
+### Schema version 4 criteria
+
+- `selfOwnedRepository` is `Any`, `OnlySelfOwned`, or `ExcludeSelfOwned`, and matches on whether the
+  repository owner login and the subject author login are the same account (compared
+  case-insensitively) — that is, whether the subject sits in its own author's personal namespace. A
+  subject with no known author is treated as not self-owned. Combined with `types: ["Merge"]` and
+  `assigneeScope: "Me"`, this isolates your own pull requests in your own repositories, where nobody
+  else can review and the merge is yours alone to do; the merge-ready detector waives the approval
+  requirement for exactly that case (see [docs/github-app.md](github-app.md)).
 
 Filters are persisted as structured, versioned JSON. Version 1 has this shape:
 
@@ -96,7 +106,19 @@ Version 3 adds `riskLevels`:
 }
 ```
 
-The serializer accepts schema versions 1 through 3. A version 1 or 2 document deserializes with every
+Version 4 adds `selfOwnedRepository`:
+
+```json
+{
+  "schemaVersion": 4,
+  "types": ["Merge"],
+  "states": ["Open"],
+  "assigneeScope": "Me",
+  "selfOwnedRepository": "OnlySelfOwned"
+}
+```
+
+The serializer accepts schema versions 1 through 4. A document older than the current version deserializes with every
 criterion newer than its own version defaulted to "no constraint" (empty arrays, `Any` enum members),
 and the resulting in-memory filter is stamped with the current schema version; re-saving it (for
 example, editing and updating the view or rule) upgrades its stored JSON to the current version. The
@@ -111,7 +133,7 @@ branches is a straightforward combination rather than a conflict to resolve line
 
 ## Saved Views
 
-Every user always has the built-in `Needs me`, `Needs my team`, `Waiting on others`, and `FYI` views. Custom views are private to their owner, have normalized case-insensitive unique names, and can be created, edited, deleted, and reordered.
+Every user always has the built-in `Needs me`, `Needs my team`, `Waiting on others`, `FYI`, and `Ready in my repos` views. `Ready in my repos` is open `Merge` work assigned to you in repositories you own, which is where the merge is yours alone to do. Custom views are private to their owner, have normalized case-insensitive unique names, and can be created, edited, deleted, and reordered.
 
 View counts and Inbox results are calculated only from actions the current user is authorized to see through an active installation membership and direct or active-team assignment. Per-user archive, mute, and active snooze dispositions are excluded before the shared filter runs. FYI and pin dispositions are projected into the visible result, with pinned work first.
 

@@ -110,7 +110,8 @@ public static class VisibleActionFilterCandidate
             action.Milestone,
             action.RequestedViaCodeowners,
             AgentAuthor: action.AgentAuthor,
-            RiskLevel: action.ReviewRiskLevel);
+            RiskLevel: action.ReviewRiskLevel,
+            IsSelfOwnedRepository: RepositoryOwnership.IsSelfOwned(action.RepositoryOwner, action.AuthorLogin));
     }
 }
 

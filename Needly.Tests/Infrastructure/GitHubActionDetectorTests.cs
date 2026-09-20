@@ -194,6 +194,110 @@ public sealed class GitHubActionDetectorTests
     }
 
     [Fact]
+    public async Task MergeReady_RepositoryWithoutAnyChecks_CreatesMergeAction()
+    {
+        await using var database = await DetectorTestDatabase.CreateAsync();
+        await SeedAsync(database.Context);
+        var lookup = new FakePullRequestLookup
+        {
+            Result = ReadyPullRequest(BaseTime.AddMinutes(1)) with { CheckState = GitHubCheckState.Unknown }
+        };
+        var handler = CreateHandler(database, lookup);
+
+        await HandleAsync(database.Context, handler, "pull_request", "opened", PullRequestPayload(false, BaseTime.AddMinutes(1), []), BaseTime.AddMinutes(1));
+
+        await using var verification = database.CreateContext();
+        var action = await verification.Actions.AsNoTracking().SingleAsync();
+        Assert.Equal(ActionType.Merge, action.Type);
+        Assert.Equal(ActionState.Open, action.State);
+        Assert.Contains("no checks are configured", action.Context);
+    }
+
+    [Fact]
+    public async Task MergeReady_PendingChecks_DoesNotCreateMergeAction()
+    {
+        await using var database = await DetectorTestDatabase.CreateAsync();
+        await SeedAsync(database.Context);
+        var lookup = new FakePullRequestLookup
+        {
+            Result = ReadyPullRequest(BaseTime.AddMinutes(1)) with { CheckState = GitHubCheckState.Pending }
+        };
+        var handler = CreateHandler(database, lookup);
+
+        await HandleAsync(database.Context, handler, "pull_request", "opened", PullRequestPayload(false, BaseTime.AddMinutes(1), []), BaseTime.AddMinutes(1));
+
+        await using var verification = database.CreateContext();
+        Assert.Empty(await verification.Actions.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task MergeReady_SelfOwnedPullRequestNobodyCanReview_CreatesMergeActionWithoutApprovals()
+    {
+        await using var database = await DetectorTestDatabase.CreateAsync();
+        var seed = await SeedAsync(database.Context);
+        var lookup = new FakePullRequestLookup { Result = SelfOwnedUnreviewablePullRequest(BaseTime.AddMinutes(1)) };
+        var handler = CreateHandler(database, lookup);
+
+        await HandleAsync(database.Context, handler, "pull_request", "opened", PullRequestPayload(false, BaseTime.AddMinutes(1), []), BaseTime.AddMinutes(1));
+
+        await using var verification = database.CreateContext();
+        var action = await verification.Actions.AsNoTracking().SingleAsync();
+        Assert.Equal(ActionType.Merge, action.Type);
+        Assert.Equal(seed.Author.Id, action.AssigneeId);
+        Assert.Equal(ActionState.Open, action.State);
+        Assert.Contains("you own the repository", action.Context, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("requested-reviewer")]
+    [InlineData("submitted-review")]
+    [InlineData("other-owner")]
+    public async Task MergeReady_SelfOwnedExemptionDoesNotApply_KeepsConfiguredApprovalRequirement(string variation)
+    {
+        await using var database = await DetectorTestDatabase.CreateAsync();
+        await SeedAsync(database.Context);
+        var readiness = SelfOwnedUnreviewablePullRequest(BaseTime.AddMinutes(1));
+        var lookup = new FakePullRequestLookup
+        {
+            Result = variation switch
+            {
+                "requested-reviewer" => readiness with { RequestedReviewerCount = 1 },
+                "submitted-review" => readiness with { ReviewCount = 1 },
+                "other-owner" => readiness with { AuthorLogin = "someone-else" },
+                _ => throw new InvalidOperationException($"Unknown variation '{variation}'.")
+            }
+        };
+        var handler = CreateHandler(database, lookup);
+
+        await HandleAsync(database.Context, handler, "pull_request", "opened", PullRequestPayload(false, BaseTime.AddMinutes(1), []), BaseTime.AddMinutes(1));
+
+        await using var verification = database.CreateContext();
+        Assert.Empty(await verification.Actions.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task MergeReady_HistoricalBootstrapPullRequest_CreatesMergeAction()
+    {
+        await using var database = await DetectorTestDatabase.CreateAsync();
+        await SeedAsync(database.Context);
+        var lookup = new FakePullRequestLookup { Result = SelfOwnedUnreviewablePullRequest(BaseTime.AddMinutes(1)) };
+        var handler = CreateHandler(database, lookup);
+
+        await HandleAsync(
+            database.Context,
+            handler,
+            "needly_historical_pull_request",
+            "opened",
+            PullRequestPayload(false, BaseTime.AddMinutes(1), []),
+            BaseTime.AddMinutes(1));
+
+        await using var verification = database.CreateContext();
+        var action = await verification.Actions.AsNoTracking().SingleAsync();
+        Assert.Equal(ActionType.Merge, action.Type);
+        Assert.Equal(ActionState.Open, action.State);
+    }
+
+    [Fact]
     public async Task Respond_ExactMention_IsCaseInsensitiveWithoutPrefixMatches()
     {
         await using var database = await DetectorTestDatabase.CreateAsync();
@@ -1289,6 +1393,19 @@ public sealed class GitHubActionDetectorTests
             IsMergeable: true,
             HasConflicts: false,
             observedAt);
+
+    // The seeded repository is owned by "octocat" (see TestData.CreateRepository), so an author login of
+    // "octocat" puts the pull request in its own author's personal namespace. With no reviewer requested
+    // and no review submitted, nobody but the author can act on it.
+    private static GitHubPullRequestReadiness SelfOwnedUnreviewablePullRequest(DateTimeOffset observedAt) =>
+        ReadyPullRequest(observedAt) with
+        {
+            AuthorLogin = "octocat",
+            ApprovalCount = 0,
+            CheckState = GitHubCheckState.Unknown,
+            RequestedReviewerCount = 0,
+            ReviewCount = 0
+        };
 
     private static async Task<SeedResult> SeedAsync(NeedlyDbContext context)
     {

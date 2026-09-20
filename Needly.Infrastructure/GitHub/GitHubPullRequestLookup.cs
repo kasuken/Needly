@@ -69,7 +69,11 @@ public sealed class GitHubPullRequestLookup(IGitHubApiClientFactory clientFactor
             checkState,
             pullRequest.Mergeable,
             hasConflicts,
-            pullRequest.UpdatedAt);
+            pullRequest.UpdatedAt,
+            (pullRequest.RequestedReviewers?.Count ?? 0) + (pullRequest.RequestedTeams?.Count ?? 0),
+            // The author's own reviews say nothing about whether anyone else has looked at the pull
+            // request, and GitHub does not let an author approve their own, so they are excluded.
+            latestReviews.Count(review => review.User.Id != pullRequest.User.Id));
     }
 
     private static GitHubCheckState GetCheckState(CombinedStatusResponse status, CheckRunsResponse checkRuns)
@@ -124,7 +128,11 @@ public sealed class GitHubPullRequestLookup(IGitHubApiClientFactory clientFactor
         [property: JsonPropertyName("mergeable_state")] string? MergeableState,
         [property: JsonPropertyName("updated_at")] DateTimeOffset UpdatedAt,
         [property: JsonPropertyName("user")] ApiUser User,
-        [property: JsonPropertyName("head")] ApiHead Head);
+        [property: JsonPropertyName("head")] ApiHead Head,
+        [property: JsonPropertyName("requested_reviewers")] IReadOnlyList<ApiUser>? RequestedReviewers = null,
+        [property: JsonPropertyName("requested_teams")] IReadOnlyList<ApiTeam>? RequestedTeams = null);
+
+    private sealed record ApiTeam([property: JsonPropertyName("id")] long Id);
 
     private sealed record ApiUser(
         [property: JsonPropertyName("id")] long Id,

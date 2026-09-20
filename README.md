@@ -26,7 +26,7 @@ GitHub produces events. Teams need a clear queue of work. Needly bridges that ga
 - **Action detection**: identify review requests, unresolved feedback, CI failures, response-worthy mentions, and pull requests ready to merge.
 - **Durable event processing**: persist webhook deliveries before acknowledging them, deduplicate delivery IDs, preserve ordering, retry transient failures, and recover after restart.
 - **Historical bootstrap**: import existing open work after an installation is connected, with resumable repository-level progress.
-- **Saved Views**: create reusable filters for action type, state, repository, organization, author, assignee, waiting time, and bot involvement.
+- **Saved Views**: create reusable filters for action type, state, repository, organization, author, assignee, waiting time, bot involvement, and repository ownership.
 - **Automation Rules**: automatically pin, archive, mute, snooze, or mark matching actions as FYI.
 - **Team-aware visibility**: distinguish work assigned directly to you from work assigned to your teams.
 - **Risk and lifecycle controls**: flag stale work, snooze actions, archive completed attention, and keep an undo history where appropriate.

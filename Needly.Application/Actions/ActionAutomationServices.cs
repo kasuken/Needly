@@ -145,6 +145,16 @@ public static class BuiltInSavedViews
         {
             Types = [ActionType.FYI, ActionType.Monitor],
             States = [ActionState.Open]
-        }, 3, 0, true)
+        }, 3, 0, true),
+        // Merge actions are always assigned to the pull request's author, so scoping to Me already
+        // means "my pull request"; the self-owned criterion narrows that to repositories in my own
+        // personal namespace, where nobody else can review and the merge is mine alone to do.
+        new("ready-in-my-repos", null, "Ready in my repos", new ActionFilter
+        {
+            Types = [ActionType.Merge],
+            States = [ActionState.Open],
+            AssigneeScope = ActionAssigneeScope.Me,
+            SelfOwnedRepository = SelfOwnedRepositoryFilter.OnlySelfOwned
+        }, 4, 0, true)
     ];
 }

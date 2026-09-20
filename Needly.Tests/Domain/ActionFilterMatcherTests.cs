@@ -186,7 +186,8 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { RequestedViaCodeowners = CodeownersFilter.OnlyRequested },
         new ActionFilter { FreeText = "retry logic" },
         new ActionFilter { AgentAuthors = ["DEPENDABOT"] },
-        new ActionFilter { RiskLevels = [ReviewRiskLevel.High] }
+        new ActionFilter { RiskLevels = [ReviewRiskLevel.High] },
+        new ActionFilter { SelfOwnedRepository = SelfOwnedRepositoryFilter.ExcludeSelfOwned }
     };
 
     public static TheoryData<ActionFilter> MismatchedCriterionFilters => new()
@@ -206,8 +207,42 @@ public sealed class ActionFilterMatcherTests
         new ActionFilter { RequestedViaCodeowners = CodeownersFilter.ExcludeRequested },
         new ActionFilter { FreeText = "does not appear anywhere" },
         new ActionFilter { AgentAuthors = ["renovate"] },
-        new ActionFilter { RiskLevels = [ReviewRiskLevel.Low] }
+        new ActionFilter { RiskLevels = [ReviewRiskLevel.Low] },
+        new ActionFilter { SelfOwnedRepository = SelfOwnedRepositoryFilter.OnlySelfOwned }
     };
+
+    // Schema version 4 addition: self-owned repositories.
+    [Fact]
+    public void IsMatch_SelfOwnedRepository_SplitsPersonalNamespaceWorkFromEverythingElse()
+    {
+        var selfOwned = Candidate with
+        {
+            Repository = "octocat/needly",
+            Organization = "octocat",
+            IsSelfOwnedRepository = true
+        };
+
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { SelfOwnedRepository = SelfOwnedRepositoryFilter.OnlySelfOwned }, selfOwned));
+        Assert.False(ActionFilterMatcher.IsMatch(
+            new ActionFilter { SelfOwnedRepository = SelfOwnedRepositoryFilter.ExcludeSelfOwned }, selfOwned));
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { SelfOwnedRepository = SelfOwnedRepositoryFilter.Any }, selfOwned));
+        Assert.True(ActionFilterMatcher.IsMatch(
+            new ActionFilter { SelfOwnedRepository = SelfOwnedRepositoryFilter.Any }, Candidate));
+    }
+
+    [Theory]
+    [InlineData("octocat", "octocat", true)]
+    [InlineData("OctoCat", "octocat", true)]
+    [InlineData("octo-org", "octocat", false)]
+    [InlineData("octocat", null, false)]
+    [InlineData(null, "octocat", false)]
+    [InlineData(" ", " ", false)]
+    public void IsSelfOwned_ComparesOwnerAndAuthorCaseInsensitively(string? owner, string? author, bool expected)
+    {
+        Assert.Equal(expected, RepositoryOwnership.IsSelfOwned(owner, author));
+    }
 
     // Schema version 3 additions (issue #34).
     [Fact]
