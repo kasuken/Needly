@@ -32,6 +32,15 @@ public interface IInstallationInventoryService
         long gitHubInstallationId,
         DateTimeOffset linkedAt,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Re-reads the repository selection for an active installation from the GitHub API and
+    /// reconciles the durable inventory (upserting current repositories and deactivating any that
+    /// are no longer accessible). Used by the Settings page to refresh on demand.
+    /// </summary>
+    Task RefreshRepositoriesAsync(
+        long gitHubInstallationId,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>Reads the GitHub installation inventory shown in Settings.</summary>

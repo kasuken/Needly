@@ -397,6 +397,10 @@ public sealed class GitHubWebhookProcessingTests
             long gitHubInstallationId,
             DateTimeOffset linkedAt,
             CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task RefreshRepositoriesAsync(
+            long gitHubInstallationId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class RecordingMembershipService : IGitHubOrganizationMembershipService

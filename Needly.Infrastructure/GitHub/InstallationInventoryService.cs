@@ -307,16 +307,28 @@ public sealed class InstallationInventoryService(
         }
     }
 
+    /// <inheritdoc />
+    public Task RefreshRepositoriesAsync(
+        long gitHubInstallationId,
+        CancellationToken cancellationToken) =>
+        SynchronizeRepositoriesAsync(gitHubInstallationId, cancellationToken);
+
     private async Task SynchronizeRepositoriesAsync(
         long gitHubInstallationId,
         CancellationToken cancellationToken)
     {
         var installation = await dbContext.Installations
-            .SingleAsync(
+            .SingleOrDefaultAsync(
                 item => item.GitHubInstallationId == gitHubInstallationId &&
                         item.State == InstallationState.Active,
                 cancellationToken)
             .ConfigureAwait(false);
+        if (installation is null)
+        {
+            throw new InvalidOperationException(
+                $"GitHub installation {gitHubInstallationId} is not active.");
+        }
+
         var client = await apiClientFactory
             .CreateAsync(gitHubInstallationId, cancellationToken)
             .ConfigureAwait(false);

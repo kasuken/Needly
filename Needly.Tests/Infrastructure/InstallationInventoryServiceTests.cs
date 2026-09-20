@@ -163,6 +163,53 @@ public sealed class InstallationInventoryServiceTests
         Assert.Equal(2, await database.Context.Repositories.CountAsync());
     }
 
+    [Fact]
+    public async Task RefreshRepositoriesAsync_ActiveInstallation_ReconcilesInventoryFromGitHub()
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var apiClientFactory = new RecordingApiClientFactory(new Dictionary<string, ApiResponse>
+        {
+            [RepositoriesPath] = new(
+                "{\"repositories\":[{\"id\":702,\"name\":\"repo-702\",\"full_name\":\"octo-org/repo-702\",\"owner\":{\"id\":601,\"login\":\"octo-org\",\"type\":\"Organization\"}}]}")
+        });
+        var service = CreateService(database.Context, apiClientFactory);
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent("created", [CreateRepository(701)]),
+            TestData.CreatedAt,
+            CancellationToken.None);
+
+        await service.RefreshRepositoriesAsync(501, CancellationToken.None);
+
+        Assert.Equal([501], apiClientFactory.InstallationIds);
+        Assert.Equal([RepositoriesPath], apiClientFactory.RequestPaths);
+        Assert.Equal(
+            [702L],
+            await database.Context.Repositories
+                .Where(repository => repository.IsActive)
+                .Select(repository => repository.GitHubRepositoryId)
+                .ToListAsync());
+        Assert.False((await database.Context.Repositories
+            .SingleAsync(repository => repository.GitHubRepositoryId == 701)).IsActive);
+    }
+
+    [Fact]
+    public async Task RefreshRepositoriesAsync_InactiveInstallation_Throws()
+    {
+        await using var database = await InventoryTestDatabase.CreateAsync();
+        var service = CreateService(database.Context);
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent("created", []),
+            TestData.CreatedAt,
+            CancellationToken.None);
+        await service.HandleInstallationAsync(
+            CreateInstallationEvent("suspend"),
+            TestData.CreatedAt.AddMinutes(1),
+            CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.RefreshRepositoriesAsync(501, CancellationToken.None));
+    }
+
     [Theory]
     [InlineData("suspend", InstallationState.Suspended)]
     [InlineData("deleted", InstallationState.Deleted)]
