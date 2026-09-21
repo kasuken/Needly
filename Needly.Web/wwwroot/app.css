@@ -718,10 +718,18 @@ h1:focus {
         text-align: right !important;
     }
 
+    /* Keep this a real table cell: applying display:flex to a <td> drops it out of
+       table layout so its height and bottom border no longer align with sibling
+       cells (visible as broken row dividers on rows whose actions cell is empty).
+       Right-align the inline action buttons instead. */
     .management-actions {
-        display: flex;
         min-width: 10.5rem;
-        justify-content: flex-end;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .management-actions .mud-button-root {
+        vertical-align: middle;
     }
 
     @media (max-width: 599.98px) {
