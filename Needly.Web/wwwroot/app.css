@@ -752,26 +752,39 @@ h1:focus {
         gap: 1.5rem;
     }
 
+    /* Installation cards echo the Inbox action cards: soft 1px shadow, 6px radius,
+       and a hover that lifts the border toward the primary colour. */
     .settings-installation {
         min-width: 0;
         border: 1px solid var(--mud-palette-divider);
-        border-radius: 8px;
+        border-radius: 6px;
         background: var(--mud-palette-surface);
-        box-shadow: 0 2px 8px color-mix(in srgb, #000000 5%, transparent);
+        box-shadow: 0 1px 0 color-mix(in srgb, #000000 4%, transparent);
         overflow: hidden;
+        transition: background-color 120ms ease, border-color 120ms ease;
+    }
+
+    .settings-installation:hover {
+        border-color: color-mix(in srgb, var(--mud-palette-primary) 45%, var(--mud-palette-divider));
     }
 
     .installation-heading {
-        min-height: 6rem;
-        padding: 1rem 1.25rem;
-        background: color-mix(in srgb, var(--mud-palette-surface) 94%, var(--mud-palette-background));
+        min-height: 5.5rem;
+        padding: 1.1rem 1.5rem;
+        background: var(--mud-palette-surface);
         cursor: pointer;
-        transition: background-color 140ms ease;
+        transition: background-color 120ms ease;
     }
 
     .installation-heading:hover,
     .installation-heading:focus-visible {
-        background: var(--needly-control-background);
+        background: var(--needly-hover);
+    }
+
+    /* Separate the collapse chevron (MudBlazor's last flex child in the header)
+       from the right-aligned action cluster so nothing crowds the card border. */
+    .settings-installation .mud-expand-panel-icon {
+        margin-left: 0.5rem;
     }
 
     .installation-identity,
