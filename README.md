@@ -246,7 +246,14 @@ powershell.exe -File .\infra\Invoke-SqlScript.ps1 `
 	-ScriptPath .\infra\grant-database-access.sql
 ```
 
-[.github/workflows/release-deploy.yml](.github/workflows/release-deploy.yml) deploys on a published GitHub release or on manual dispatch. It builds and tests, verifies the EF model matches the migrations, applies migrations through a temporary firewall rule for the runner, publishes to App Service, and smoke tests `/health/ready`. The `production` environment holds `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`; the federated credential is scoped to that environment, so deployments cannot run from other branches or forks.
+Merging to `main` only runs CI. The [Release workflow](.github/workflows/release.yml) ships to App Service: it waits for CI to pass on the commit, builds once, applies migrations through a temporary firewall rule for the runner, deploys, smoke tests `/health/ready`, and then tags and publishes the GitHub release.
+
+```bash
+gh workflow run release.yml -R kasuken/Needly -f bump=minor       # patch | minor | major
+gh workflow run release.yml -R kasuken/Needly -f redeploy=v0.0.10 # roll back
+```
+
+The steps are shared with the other kasuken SaaS apps; see [RELEASING.md](https://github.com/kasuken/.github/blob/main/RELEASING.md). The `production` environment holds `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`; the federated credential is scoped to that environment, so deployments cannot run from other branches or forks.
 
 GitHub App secrets are supplied as App Service application settings and are never committed:
 
