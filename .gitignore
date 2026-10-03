@@ -9,3 +9,4 @@ needly.db-wal
 
 .idea/
 /.claude/worktrees/
+.testagent/

@@ -7,6 +7,7 @@
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
 @inject ILogger<MainLayout> Logger
+@inject IConfiguration Configuration
 
 <MudThemeProvider Theme="NeedlyTheme.Default" @bind-IsDarkMode="_isDarkMode"/>
 <MudPopoverProvider/>
@@ -95,6 +96,7 @@
             <MudNavLink Href="/views" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.ViewList">Views</MudNavLink>
             <MudNavLink Href="/rules" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Rule">Rules</MudNavLink>
             <MudNavLink Href="/settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Settings">Settings</MudNavLink>
+            <MudNavLink Href="@SourceCodeUrl" Target="_blank" Icon="@Icons.Custom.Brands.GitHub">Source code</MudNavLink>
         </MudNavMenu>
     </MudDrawer>
 
@@ -118,6 +120,9 @@
     private bool _isDarkMode;
     private bool _showOnboarding;
     private bool _onboardingOpened;
+
+    // AGPL-3.0 section 13: users of a network deployment must be offered the corresponding source.
+    private string SourceCodeUrl => Configuration["SourceCodeUrl"] is { Length: > 0 } url ? url : "https://github.com/kasuken/Needly";
 
     protected override async Task OnInitializedAsync()
     {

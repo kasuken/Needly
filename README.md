@@ -8,12 +8,18 @@
 
 <p align="center">Turn GitHub activity into focused work: what needs your attention, why it matters, and what to do next.</p>
 
-<p align="center"><a href="#getting-started">Get started</a> · <a href="#github-app-integration">Connect GitHub</a> · <a href="#architecture">Architecture</a> · <a href="#development">Development</a></p>
+<p align="center"><a href="#getting-started">Get started</a> · <a href="#github-app-integration">Connect GitHub</a> · <a href="#architecture">Architecture</a> · <a href="#development">Development</a> · <a href="#contributing">Contributing</a></p>
+
+<p align="center"><a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square"></a></p>
 
 Needly is a .NET 10 Blazor Web App for GitHub teams. It receives GitHub webhooks, turns relevant activity into durable actions, and presents an inbox organized around decisions and outcomes rather than an undifferentiated stream of notifications.
 
 > [!NOTE]
 > Needly is under active development. GitHub integration is disabled by default, and a fresh clone can be built and run locally without GitHub credentials.
+
+## Hosted or self-hosted
+
+Needly is available as a hosted service at **[needly.today](https://needly.today)**, and it's also fully open source: you can run your own instance from this repository. Self-hosting means registering your own GitHub App (see [docs/github-app.md](docs/github-app.md)) and providing a SQL Server database. Features that only matter to the hosted service sit behind configuration and are off by default.
 
 ## Why Needly?
 
@@ -89,9 +95,27 @@ The main routes are:
 | `/rules` | Manage ordered, per-user automation rules |
 | `/settings` | Link GitHub installations and select repositories |
 
+## First-run onboarding
+
+The first authenticated session opens a five-step MudBlazor wizard. It explains how Needly turns GitHub activity into actions, how to connect repositories, what the built-in focus sections mean, and how Saved Views, Rules, and action lifecycle controls shape the Inbox. The final step links directly to Settings or the Inbox.
+
+Completing or explicitly skipping the introduction stores a completion timestamp on the Needly user, so the wizard does not reopen on later sessions or other devices.
+
+## Saved Views and Rules
+
+Saved Views and automation Rules use one versioned filter contract. Views filter the authorized Inbox and provide live open counts; Rules apply ordered, per-user effects as GitHub events create or update actions. See [docs/saved-views-and-rules.md](docs/saved-views-and-rules.md) for filter semantics, effects, ordering, team behavior, and persistence details.
+
 ## GitHub App integration
 
 Needly requests read-only access for repository metadata, Actions, Contents, Issues, Pull requests, Checks, organization members, and user email addresses. It subscribes to installation, repository, issue, comment, pull request, review, check, workflow, member, team, and membership events.
+
+Needly uses cookie authentication plus the GitHub App user authorization flow. GitHub integration is disabled by default, so a fresh clone starts without credentials. Registration, public callback URLs, and secrets remain owner-operated.
+
+Action behavior defaults are configured in `appsettings.json`: one approval is required for Merge actions, Review actions are marked at risk after more than eight hours waiting, and all open actions are marked at risk after more than three days without activity. See the GitHub App guide for override keys and readiness limitations.
+
+After configuring a GitHub App and applying database migrations, sign in at `/auth/login`. The post-install setup URL returns to `/github/setup`, which links the installation to the signed-in Needly user and redirects to `/settings`.
+
+After an installation is linked, Needly gradually bootstraps actions from the installation's current open pull requests and issues. The bootstrap persists synthetic events through the same durable processing pipeline used by webhooks, so existing review requests, unresolved feedback, failed checks, and conversations appear without waiting for new GitHub activity. Settings shows progress while this import is running and removes the notice after all selected repositories have been checked. The bootstrap is repository-scoped and resumable; by default, the worker processes up to 25 repositories per 30-second batch and reads at most ten pages from each GitHub endpoint. Configure these limits under `GitHubHistoricalBootstrap`, or set `Enabled` to `false` to disable backfill.
 
 Webhook requests are verified with HMAC-SHA256 before parsing or persistence. Accepted deliveries are stored durably, acknowledged with `202`, and processed by bounded background workers. Duplicate delivery IDs are idempotent; unknown event names are retained and marked skipped.
 
@@ -173,7 +197,6 @@ Run focused tests with the usual xUnit filters, or run the complete suite with `
 
 - [GitHub App setup and webhook behavior](docs/github-app.md)
 - [Saved Views and automation Rules](docs/saved-views-and-rules.md)
-- [Product direction](docs/productidea.md)
 
 ## Local database
 
@@ -241,24 +264,16 @@ az webapp config ssl create -g Needly.Prod --name needly-prod-001 --hostname <do
 az webapp config ssl bind -g Needly.Prod --name needly-prod-001 --certificate-thumbprint <thumbprint> --ssl-type SNI
 ```
 
-## GitHub App integration
+## Contributing
 
-Needly uses cookie authentication plus the GitHub App user authorization flow. GitHub integration is disabled by default, so a fresh clone starts without credentials. Registration, public callback URLs, and secrets remain owner-operated.
+Contributions are welcome! Please read the [contributing guidelines](https://github.com/kasuken/.github/blob/main/CONTRIBUTING.md) and the [Code of Conduct](https://github.com/kasuken/.github/blob/main/CODE_OF_CONDUCT.md) before opening a pull request. All contributors must sign the [Contributor License Agreement](https://github.com/kasuken/.github/blob/main/CLA.md); a bot will ask you to on your first pull request.
 
-See [docs/github-app.md](docs/github-app.md) for the required permissions, webhook events, development and production manifests, callback URLs, and local/production secret configuration.
+## Security
 
-Action behavior defaults are configured in `appsettings.json`: one approval is required for Merge actions, Review actions are marked at risk after more than eight hours waiting, and all open actions are marked at risk after more than three days without activity. See the GitHub App guide for override keys and readiness limitations.
+Please **do not** report security vulnerabilities in public issues. Use [private vulnerability reporting](https://github.com/kasuken/Needly/security/advisories/new) instead. See the [Security Policy](https://github.com/kasuken/.github/blob/main/SECURITY.md) for details.
 
-After configuring a GitHub App and applying database migrations, sign in at `/auth/login`. The post-install setup URL returns to `/github/setup`, which links the installation to the signed-in Needly user and redirects to `/settings`.
+## License
 
-After an installation is linked, Needly gradually bootstraps actions from the installation's current open pull requests and issues. The bootstrap persists synthetic events through the same durable processing pipeline used by webhooks, so existing review requests, unresolved feedback, failed checks, and conversations appear without waiting for new GitHub activity. Settings shows progress while this import is running and removes the notice after all selected repositories have been checked. The bootstrap is repository-scoped and resumable; by default, the worker processes up to 25 repositories per 30-second batch and reads at most ten pages from each GitHub endpoint. Configure these limits under `GitHubHistoricalBootstrap`, or set `Enabled` to `false` to disable backfill.
+Needly is licensed under the [GNU Affero General Public License v3.0 only](LICENSE) (`AGPL-3.0-only`). If you run a modified version of Needly as a network service, the AGPL requires you to make your modified source code available to its users. Set `SourceCodeUrl` in configuration to point the in-app "Source code" link at your repository.
 
-## First-run onboarding
-
-The first authenticated session opens a five-step MudBlazor wizard. It explains how Needly turns GitHub activity into actions, how to connect repositories, what the built-in focus sections mean, and how Saved Views, Rules, and action lifecycle controls shape the Inbox. The final step links directly to Settings or the Inbox.
-
-Completing or explicitly skipping the introduction stores a completion timestamp on the Needly user, so the wizard does not reopen on later sessions or other devices.
-
-## Saved Views and Rules
-
-Saved Views and automation Rules use one versioned filter contract. Views filter the authorized Inbox and provide live open counts; Rules apply ordered, per-user effects as GitHub events create or update actions. See [docs/saved-views-and-rules.md](docs/saved-views-and-rules.md) for filter semantics, effects, ordering, team behavior, and persistence details.
+"Needly" and the Needly logo are trademarks of Emanuele Bartolesi and are not licensed under the AGPL. If you publish a modified public instance, please use a different name and logo.

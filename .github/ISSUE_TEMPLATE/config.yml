@@ -1,1 +1,8 @@
 blank_issues_enabled: true
+contact_links:
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/kasuken/Needly/security/advisories/new
+    about: Please report security issues privately, never in public issues.
+  - name: 💬 Hosted service support (needly.today)
+    url: https://needly.today
+    about: Account, billing or subscription questions about the hosted service.
