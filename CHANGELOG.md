@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - In-app "Source code" link, configurable through `SourceCodeUrl`.
 - Bug report form, CODEOWNERS, Dependabot configuration, `.editorconfig`, `.gitattributes`, and third-party notices.
 
+### Changed
+
+- Releases use the shared kasuken release workflow: run **Release** on `main` with a version bump (or publish a GitHub release). It waits for CI, builds once, runs migrations, deploys, smoke tests, and only then tags the release; `redeploy` rolls back to an earlier tag.
+
 ### Security
 
 - Removed GitHub App development credentials from `appsettings.Development.json`. Configure them with user secrets.
