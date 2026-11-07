@@ -8,6 +8,7 @@ using Needly.Web.Authentication;
 using Needly.Web.Components;
 using Needly.Web.Components.Views;
 using Needly.Web.GitHub;
+using Needly.Web.Security;
 
 AppContext.SetSwitch(
     "Microsoft.AspNetCore.Components.Routing.NavLink.EnableMatchAllForQueryStringAndFragment",
@@ -53,6 +54,11 @@ builder.Services.AddScoped<SavedViewNavigationState>();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<NeedlyDbContext>("database", tags: ["ready"]);
 builder.Services.AddAuthorization();
+builder.Services.AddNeedlyRateLimiting(builder.Configuration);
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = SecurityHeadersExtensions.HstsMaxAge;
+});
 var gitHubIntegrationEnabled = builder.Configuration
     .GetValue<bool>($"{GitHubAppOptions.SectionName}:Enabled");
 var authentication = builder.Services
@@ -82,10 +88,10 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
+app.UseNeedlySecurityHeaders();
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
@@ -95,6 +101,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = check => check.Tags.Contains("ready")
 });
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();

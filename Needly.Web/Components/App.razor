@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css"/>
     <link rel="stylesheet" href="@Assets["app.css"]"/>
     <link rel="stylesheet" href="@Assets["Needly.Web.styles.css"]"/>
-    <ImportMap/>
+    <ImportMap nonce="@CspNonce"/>
     <HeadOutlet @rendermode="RenderModeForPage"/>
 </head>
 
@@ -37,6 +37,8 @@
 @code {
     [CascadingParameter]
     public HttpContext HttpContext { get; set; } = default!;
+
+    private string? CspNonce => HttpContext.GetCspNonce();
 
     private IComponentRenderMode? RenderModeForPage =>
         HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;

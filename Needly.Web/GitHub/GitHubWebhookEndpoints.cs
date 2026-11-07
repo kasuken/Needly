@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Needly.Application.GitHub;
 using Needly.Infrastructure.GitHub;
+using Needly.Web.Security;
 
 namespace Needly.Web.GitHub;
 
@@ -23,7 +24,8 @@ public static class GitHubWebhookEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status413PayloadTooLarge)
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .RequireRateLimiting(RateLimitingExtensions.WebhookPolicy);
         return app;
     }
 
