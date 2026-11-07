@@ -91,6 +91,7 @@ public sealed class GitHubWebhookDispatcher(
         }
         catch (Exception exception) when (IsTransient(exception) && rawEvent.AttemptCount < options.WebhookMaxAttempts)
         {
+            DiscardPendingChanges(rawEvent);
             var delay = GetRetryDelay(rawEvent.AttemptCount);
             rawEvent.MarkFailed(
                 $"{exception.GetType().Name}: transient webhook processing failure.",
@@ -106,6 +107,7 @@ public sealed class GitHubWebhookDispatcher(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            DiscardPendingChanges(rawEvent);
             rawEvent.MarkFailed($"{exception.GetType().Name}: webhook processing failed.", null);
             await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             logger.LogError(
@@ -113,6 +115,21 @@ public sealed class GitHubWebhookDispatcher(
                 "GitHub event {EventId} failed permanently on attempt {AttemptCount}",
                 rawEvent.Id,
                 rawEvent.AttemptCount);
+        }
+    }
+
+    /// <summary>
+    /// Drops entities left pending by a failed save. Otherwise the follow-up save that records the
+    /// failure would replay the same failing statement, throw out of the dispatcher and stop the host.
+    /// </summary>
+    private void DiscardPendingChanges(RawEvent rawEvent)
+    {
+        foreach (var entry in dbContext.ChangeTracker.Entries().ToList())
+        {
+            if (!ReferenceEquals(entry.Entity, rawEvent) && entry.State != EntityState.Unchanged)
+            {
+                entry.State = EntityState.Detached;
+            }
         }
     }
 

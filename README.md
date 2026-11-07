@@ -15,7 +15,7 @@
 Needly is a .NET 10 Blazor Web App for GitHub teams. It receives GitHub webhooks, turns relevant activity into durable actions, and presents an inbox organized around decisions and outcomes rather than an undifferentiated stream of notifications.
 
 > [!NOTE]
-> Needly is under active development. GitHub integration is disabled by default, and a fresh clone can be built and run locally without GitHub credentials.
+> Needly is under active development. GitHub integration is disabled by default, and a fresh clone can be built and started locally without GitHub credentials. Without a GitHub App configured, /auth/login returns 503 and sign-in is unavailable, so there is nothing to use past the landing page until you register one (see [docs/github-app.md](docs/github-app.md)).
 
 ## Hosted or self-hosted
 
@@ -34,7 +34,7 @@ GitHub produces events. Teams need a clear queue of work. Needly bridges that ga
 - **Historical bootstrap**: import existing open work after an installation is connected, with resumable repository-level progress.
 - **Saved Views**: create reusable filters for action type, state, repository, organization, author, assignee, waiting time, bot involvement, and repository ownership.
 - **Automation Rules**: automatically pin, archive, mute, snooze, or mark matching actions as FYI.
-- **Team-aware visibility**: distinguish work assigned directly to you from work assigned to your teams.
+- **Team-aware visibility**: distinguish work assigned directly to you from work assigned to your teams. Access is per user today: each teammate signs in with GitHub to see their own Inbox, and organisation-wide enrolment is not built yet.
 - **Risk and lifecycle controls**: flag stale work, snooze actions, archive completed attention, and keep an undo history where appropriate.
 
 ## Getting started

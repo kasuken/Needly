@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Needly.Application.Actions;
 using Needly.Domain;
@@ -182,7 +183,8 @@ public sealed class ActionRiskEvaluatorTests
         var service = new ActionRiskBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             TimeProvider.System,
-            Options.Create(new ActionRiskOptions { EvaluationInterval = TimeSpan.FromDays(1) }));
+            Options.Create(new ActionRiskOptions { EvaluationInterval = TimeSpan.FromDays(1) }),
+            NullLogger<ActionRiskBackgroundService>.Instance);
         await service.StartAsync(CancellationToken.None);
         await evaluator.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
