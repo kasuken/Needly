@@ -161,6 +161,26 @@ public sealed class GitHubWebhookProcessingTests
     }
 
     [Fact]
+    public async Task DispatchAsync_HandlerLeavesFailedSavePending_RecordsPermanentFailureWithoutThrowing()
+    {
+        await using var database = await WebhookTestDatabase.CreateAsync();
+        var rawEvent = CreateRawEvent("pull_request", "delivery-conflict");
+        database.Context.RawEvents.Add(rawEvent);
+        await database.Context.SaveChangesAsync();
+        var dispatcher = CreateDispatcher(
+            database.Context,
+            new RecordingInventoryService(),
+            new RecordingMembershipService(),
+            actionHandler: new ConflictingSaveActionHandler(database.Context));
+
+        await dispatcher.DispatchAsync(rawEvent.Id, CancellationToken.None);
+
+        var persisted = await database.Context.RawEvents.AsNoTracking().SingleAsync(item => item.Id == rawEvent.Id);
+        Assert.Equal(RawEventStatus.Failed, persisted.Status);
+        Assert.Equal(1, await database.Context.RawEvents.CountAsync());
+    }
+
+    [Fact]
     public async Task DispatchAsync_TransientFailureAtMaximumAttempt_MarksFailedWithoutRequeue()
     {
         await using var database = await WebhookTestDatabase.CreateAsync();
@@ -277,7 +297,8 @@ public sealed class GitHubWebhookProcessingTests
 
         var backgroundService = new GitHubWebhookBackgroundService(
             queue,
-            provider.GetRequiredService<IServiceScopeFactory>());
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<GitHubWebhookBackgroundService>.Instance);
         await backgroundService.StartAsync(CancellationToken.None);
         await dispatcher.Completed.WaitAsync(TimeSpan.FromSeconds(5));
         await backgroundService.StopAsync(CancellationToken.None);
@@ -421,6 +442,16 @@ public sealed class GitHubWebhookProcessingTests
             GitHubMembershipEvent membershipEvent,
             DateTimeOffset occurredAt,
             CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class ConflictingSaveActionHandler(NeedlyDbContext context) : IGitHubActionEventHandler
+    {
+        public async Task HandleAsync(GitHubStoredEvent storedEvent, CancellationToken cancellationToken)
+        {
+            // Same delivery id as the stored event: violates its unique index and stays tracked as Added.
+            context.RawEvents.Add(CreateRawEvent("pull_request", "delivery-conflict"));
+            await context.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private sealed class RecordingActionHandler(Exception? exception = null) : IGitHubActionEventHandler

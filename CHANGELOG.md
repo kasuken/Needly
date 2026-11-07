@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.0.13] - 2026-11-07
+
+### Fixed
+
+- The app no longer crashes and restarts when a single background job or webhook event fails. A failed webhook event whose save left pending changes behind used to throw again while recording the failure, which stopped the host; recovery then replayed the same event on every start. The periodic risk, snooze and follow-up jobs and the webhook consumer now log failures and carry on.
+
+### Changed
+
+- The landing page and README now say that access is per user (each teammate signs in with GitHub) and that sign-in is unavailable until a GitHub App is configured.
+
 ## [0.0.12] - 2026-11-07
 
 ### Added
