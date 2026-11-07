@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Needly.Application.GitHub;
+using Needly.Web.Security;
 
 namespace Needly.Web.Authentication;
 
@@ -27,7 +28,7 @@ internal static class AuthenticationEndpoints
                 RedirectUri = GetLocalReturnUrl(returnUrl)
             };
             return Results.Challenge(properties, [GitHubAuthenticationDefaults.Scheme]);
-        }).AllowAnonymous();
+        }).AllowAnonymous().RequireRateLimiting(RateLimitingExtensions.LoginPolicy);
 
         endpoints.MapPost("/auth/logout", async (HttpContext context, IAntiforgery antiforgery) =>
         {
@@ -68,7 +69,7 @@ internal static class AuthenticationEndpoints
                 _ => "connected"
             };
             return Results.Redirect($"/settings?status={status}");
-        }).RequireAuthorization();
+        }).RequireAuthorization().RequireRateLimiting(RateLimitingExtensions.SetupPolicy);
 
         return endpoints;
     }
