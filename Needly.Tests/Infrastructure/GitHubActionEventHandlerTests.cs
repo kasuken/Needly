@@ -77,6 +77,49 @@ public sealed class GitHubActionEventHandlerTests
         Assert.Equal(3, await verification.ActionEventReceipts.CountAsync());
     }
 
+    // Issue #79: a closed or merged pull request must not keep open actions, even when a later event
+    // (a review, a comment, a late check run) makes a detector create or reactivate one.
+    [Theory]
+    [InlineData("closed", false, false)]
+    [InlineData("open", false, true)]
+    [InlineData("closed", true, false)]
+    public async Task HandleAsync_LateEventOnPullRequest_KeepsActionOpenOnlyWhileOpen(
+        string pullRequestState,
+        bool merged,
+        bool expectOpen)
+    {
+        await using var database = await ActionEngineTestDatabase.CreateAsync();
+        await SeedDependenciesAsync(database.Context);
+        var detector = new SyntheticDetector(
+            "synthetic.late-event",
+            10,
+            (context, _) => Task.FromResult<IReadOnlyList<GitHubActionOperation>>(
+                [CreateOperation("Review requested", context.Event.ReceivedAt)]));
+        var handler = CreateHandler(database, detector);
+        var payloadJson = $$"""
+            {
+              "action": "submitted",
+              "number": 42,
+              "pull_request": {
+                "number": 42,
+                "html_url": "https://github.com/octocat/needly/pull/42",
+                "title": "Late event",
+                "state": "{{pullRequestState}}",
+                "draft": false,
+                "merged": {{(merged ? "true" : "false")}},
+                "user": { "id": 900, "login": "author" },
+                "head": { "sha": "abc123" }
+              }
+            }
+            """;
+
+        var storedEvent = await AddEventAsync(database.Context, "submitted", 1, payloadJson: payloadJson);
+        await handler.HandleAsync(storedEvent, CancellationToken.None);
+
+        var persisted = await database.Context.Actions.AsNoTracking().SingleAsync();
+        Assert.Equal(expectOpen ? ActionState.Open : ActionState.Done, persisted.State);
+    }
+
     // Schema version 3 additions (issue #35).
     [Fact]
     public async Task HandleAsync_PullRequestPayloadWithKnownBotAuthor_PersistsSpecificAgentIdentity()

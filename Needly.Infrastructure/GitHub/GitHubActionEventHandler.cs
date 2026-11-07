@@ -217,6 +217,9 @@ public sealed class GitHubActionEventHandler(
             processedDetectorKeys.Add(detector.Key);
         }
 
+        actionChanged |= await ResolveActionsOnClosedPullRequestsAsync(
+            storedEvent, actions, stateStore, cancellationToken).ConfigureAwait(false);
+
         dbContext.ChangeTracker.DetectChanges();
         var changedActions = dbContext.ChangeTracker.Entries<NeedlyAction>()
             .Where(entry => entry.State is EntityState.Added or EntityState.Modified)
@@ -236,6 +239,89 @@ public sealed class GitHubActionEventHandler(
         }
 
         return actionChanged;
+    }
+
+    /// <summary>
+    /// Safety net applied after every detector has run: a closed or merged pull request must never keep
+    /// open actions (issue #79). Individual detectors resolve their own actions on the "closed" event, but
+    /// later events about the same pull request (a review, a comment, a late check run) can recreate or
+    /// reactivate actions, so the final state is reconciled here. The event payload is authoritative when
+    /// it states the pull request's state; otherwise the durable pull request state is consulted.
+    /// </summary>
+    private static async Task<bool> ResolveActionsOnClosedPullRequestsAsync(
+        GitHubStoredEvent storedEvent,
+        IReadOnlyList<NeedlyAction> actions,
+        GitHubActionStateStore stateStore,
+        CancellationToken cancellationToken)
+    {
+        var activePullRequestActions = actions
+            .Where(action => action.SubjectType == GitHubSubjectType.PullRequest &&
+                action.State is ActionState.Open or ActionState.Snoozed)
+            .ToArray();
+        if (activePullRequestActions.Length == 0)
+        {
+            return false;
+        }
+
+        GitHubActionWebhookPayload? payload = null;
+        try
+        {
+            payload = System.Text.Json.JsonSerializer.Deserialize<GitHubActionWebhookPayload>(
+                storedEvent.PayloadJson,
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // Payloads that do not parse carry no state; fall back to the durable pull request state.
+        }
+
+        int? payloadNumber = null;
+        bool? payloadClosed = null;
+        var closedAt = storedEvent.ReceivedAt;
+        if (payload?.PullRequest is { } pullRequest)
+        {
+            payloadNumber = payload.Number > 0 ? payload.Number : pullRequest.Number;
+            if (pullRequest.IsClosed || payload.Action == "closed" || storedEvent.Action == "closed")
+            {
+                payloadClosed = true;
+                closedAt = pullRequest.MergedAt ?? pullRequest.ClosedAt ?? storedEvent.ReceivedAt;
+            }
+            else if (string.Equals(pullRequest.State, "open", StringComparison.OrdinalIgnoreCase))
+            {
+                payloadClosed = false;
+            }
+        }
+        else if (payload?.Issue is { PullRequest: not null, State: not null } issue)
+        {
+            // issue_comment events on a pull request describe it through the issue object.
+            payloadNumber = issue.Number;
+            payloadClosed = string.Equals(issue.State, "closed", StringComparison.OrdinalIgnoreCase);
+            if (payloadClosed == true)
+            {
+                closedAt = issue.UpdatedAt ?? storedEvent.ReceivedAt;
+            }
+        }
+
+        var changed = false;
+        foreach (var group in activePullRequestActions.GroupBy(action => action.SubjectNumber))
+        {
+            var closed = payloadNumber == group.Key && payloadClosed is not null
+                ? payloadClosed.Value
+                : (await stateStore.GetPullRequestAsync(group.Key, cancellationToken).ConfigureAwait(false))
+                    is { IsOpen: false };
+            if (!closed)
+            {
+                continue;
+            }
+
+            foreach (var action in group)
+            {
+                action.ChangeState(ActionState.Done, closedAt);
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     private async Task ApplyFilterMetadataAsync(

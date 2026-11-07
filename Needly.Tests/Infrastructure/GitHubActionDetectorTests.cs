@@ -564,6 +564,52 @@ public sealed class GitHubActionDetectorTests
     }
 
     [Fact]
+    public async Task ClosedPullRequest_LateEventAndStaleOpenAction_AreNotShownInInbox()
+    {
+        await using var database = await DetectorTestDatabase.CreateAsync();
+        var seed = await SeedAsync(database.Context);
+        var handler = CreateHandler(database);
+        await HandleAsync(
+            database.Context,
+            handler,
+            "pull_request",
+            "review_requested",
+            PullRequestPayload(false, BaseTime.AddMinutes(1), [ReviewerGitHubId]),
+            BaseTime.AddMinutes(1));
+        await HandleAsync(
+            database.Context,
+            handler,
+            "pull_request",
+            "closed",
+            PullRequestPayload(false, BaseTime.AddMinutes(2), [ReviewerGitHubId], state: "closed"),
+            BaseTime.AddMinutes(2));
+
+        // A late event for the closed pull request must not bring the action back.
+        await HandleAsync(
+            database.Context,
+            handler,
+            "pull_request",
+            "review_requested",
+            PullRequestPayload(false, BaseTime.AddMinutes(3), [ReviewerGitHubId], state: "closed"),
+            BaseTime.AddMinutes(3));
+
+        await using var verification = database.CreateContext();
+        Assert.All(
+            await verification.Actions.AsNoTracking().ToListAsync(),
+            action => Assert.Equal(ActionState.Done, action.State));
+
+        // Rows left open by earlier versions are hidden because the pull request state says closed.
+        var stale = await verification.Actions.SingleAsync();
+        stale.ChangeState(ActionState.Open, BaseTime.AddMinutes(4));
+        await verification.SaveChangesAsync();
+        var visible = await new InboxVisibilityService(
+            verification,
+            new FixedTimeProvider(BaseTime.AddMinutes(4)))
+            .GetVisibleAsync(seed.NeedlyUser.Id, CancellationToken.None);
+        Assert.Empty(visible);
+    }
+
+    [Fact]
     public async Task PullRequestReview_SubmittedByOneReviewer_LeavesOtherReviewerOpenThenCloseResolvesIt()
     {
         await using var database = await DetectorTestDatabase.CreateAsync();
@@ -1160,7 +1206,8 @@ public sealed class GitHubActionDetectorTests
         long[] requestedReviewerIds,
         bool requestedTeam = false,
         string headSha = "head-1",
-        bool merged = false) =>
+        bool merged = false,
+        string? state = null) =>
         new
         {
             action = string.Empty,
@@ -1171,6 +1218,7 @@ public sealed class GitHubActionDetectorTests
                 title = "Improve action detection",
                 draft,
                 merged,
+                state,
                 closed_at = merged ? updatedAt : (DateTimeOffset?)null,
                 merged_at = merged ? updatedAt : (DateTimeOffset?)null,
                 updated_at = updatedAt,

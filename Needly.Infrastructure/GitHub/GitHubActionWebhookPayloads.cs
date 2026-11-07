@@ -38,7 +38,7 @@ internal static class GitHubActionWebhookParser
             pullRequest.HtmlUrl,
             pullRequest.Draft,
             pullRequest.UpdatedAt ?? fallback,
-            IsOpen: !pullRequest.Merged && !string.Equals(eventAction, "closed", StringComparison.Ordinal));
+            IsOpen: !pullRequest.IsClosed && !string.Equals(eventAction, "closed", StringComparison.Ordinal));
     }
 }
 
@@ -72,7 +72,13 @@ internal sealed record GitHubPullRequestPayload(
     [property: JsonPropertyName("labels")] IReadOnlyList<GitHubLabelPayload>? Labels = null,
     [property: JsonPropertyName("milestone")] GitHubMilestonePayload? Milestone = null,
     [property: JsonPropertyName("additions")] int? Additions = null,
-    [property: JsonPropertyName("deletions")] int? Deletions = null);
+    [property: JsonPropertyName("deletions")] int? Deletions = null,
+    [property: JsonPropertyName("state")] string? State = null)
+{
+    /// <summary>Gets a value indicating whether the payload describes a closed or merged pull request.</summary>
+    internal bool IsClosed =>
+        Merged || string.Equals(State, "closed", StringComparison.OrdinalIgnoreCase);
+}
 
 /// <summary>Describes a GitHub label on an issue or pull request.</summary>
 internal sealed record GitHubLabelPayload(
@@ -121,7 +127,8 @@ internal sealed record GitHubIssuePayload(
     [property: JsonPropertyName("body")] string? Body = null,
     [property: JsonPropertyName("labels")] IReadOnlyList<GitHubLabelPayload>? Labels = null,
     [property: JsonPropertyName("milestone")] GitHubMilestonePayload? Milestone = null,
-    [property: JsonPropertyName("assignees")] IReadOnlyList<GitHubActionUserPayload>? Assignees = null);
+    [property: JsonPropertyName("assignees")] IReadOnlyList<GitHubActionUserPayload>? Assignees = null,
+    [property: JsonPropertyName("state")] string? State = null);
 
 internal sealed record GitHubAssociatedPullRequestPayload(
     [property: JsonPropertyName("number")] int Number);

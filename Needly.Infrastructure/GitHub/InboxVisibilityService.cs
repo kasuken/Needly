@@ -30,6 +30,13 @@ public sealed class InboxVisibilityService(
             .AsNoTracking()
             .Where(action =>
                 action.State == ActionState.Open &&
+                // Closed or merged pull requests never belong in the Inbox (issue #79). This also hides
+                // rows left open by events that arrived after the pull request closed.
+                !(action.SubjectType == GitHubSubjectType.PullRequest &&
+                  dbContext.Set<GitHubPullRequestStateEntity>().Any(pullRequest =>
+                      pullRequest.RepositoryId == action.RepositoryId &&
+                      pullRequest.PullRequestNumber == action.SubjectNumber &&
+                      !pullRequest.IsOpen)) &&
                 dbContext.Installations.Any(installation =>
                     installation.Id == action.InstallationId &&
                     installation.State == InstallationState.Active) &&
