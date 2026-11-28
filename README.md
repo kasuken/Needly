@@ -1,7 +1,7 @@
 # Needly
 
 <div align="center">
-  <img src="Needly.Web/wwwroot/imgs/logo-with-text.png" alt="Needly" width="360" />
+  <img src="docs/readme-banner.svg" alt="Needly turns scattered GitHub activity into clear Review, Fix, and Merge actions. You make the decisions." width="1000" />
 </div>
 
 <h1 align="center">The Action Inbox for GitHub</h1>
