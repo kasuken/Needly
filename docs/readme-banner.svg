@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="460" viewBox="0 0 1000 460" fill="none" role="img" aria-labelledby="title description">
+  <title id="title">Needly: Less noise. More focus.</title>
+  <desc id="description">Scattered GitHub events flow through a blue needle-inspired focus mark into three clear actions: Review, Fix, and Merge. Needly organizes the work; you make the decisions.</desc>
+  <defs>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" stroke="#30363D" stroke-opacity=".22"/>
+    </pattern>
+    <linearGradient id="signal" x1="60" y1="0" x2="510" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#30363D"/>
+      <stop offset="1" stop-color="#2F81F7"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="998" height="458" rx="16" fill="#0D1117" stroke="#30363D" stroke-width="2"/>
+  <rect x="24" y="184" width="952" height="252" fill="url(#grid)"/>
+  <path d="M48 40H96" stroke="#2F81F7" stroke-width="4"/>
+  <g font-family="'IBM Plex Sans', 'Segoe UI', sans-serif">
+    <text x="48" y="108" fill="#F0F6FC" font-size="54" font-weight="600" letter-spacing="-1.5">Less noise. More focus.</text>
+    <text x="48" y="154" fill="#B1BAC4" font-size="28">Your next GitHub decision, made clear.</text>
+  </g>
+  <g stroke="url(#signal)" stroke-width="2">
+    <path d="M60 224H170C245 224 282 294 410 294"/>
+    <path d="M112 270H210C288 270 305 294 410 294"/>
+    <path d="M48 318H180C276 318 300 294 410 294"/>
+    <path d="M95 366H197C280 366 310 294 410 294"/>
+    <path d="M185 206H232C308 206 332 294 410 294"/>
+    <path d="M230 395C315 395 340 294 410 294"/>
+  </g>
+  <g fill="#161B22" stroke="#59636E" stroke-width="2">
+    <rect x="60" y="208" width="72" height="32" rx="16"/>
+    <rect x="152" y="256" width="58" height="28" rx="6"/>
+    <rect x="48" y="302" width="88" height="32" rx="6"/>
+    <rect x="95" y="350" width="62" height="32" rx="16"/>
+    <circle cx="185" cy="206" r="13"/>
+    <path d="M216 395L230 381L244 395L230 409Z"/>
+  </g>
+  <g stroke="#8B949E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M78 224H90M98 224H114M166 270H194M64 314H80M88 322H118"/>
+    <path d="M111 366H125M133 366H141M180 206H190M185 201V211"/>
+  </g>
+  <g fill="#59636E">
+    <circle cx="62" cy="274" r="3"/>
+    <circle cx="154" cy="403" r="3"/>
+    <circle cx="275" cy="228" r="3"/>
+    <circle cx="299" cy="366" r="3"/>
+    <circle cx="96" cy="194" r="3"/>
+  </g>
+  <path d="M360 294H564" stroke="#2F81F7" stroke-width="36" stroke-opacity=".08" stroke-linecap="round"/>
+  <g fill="#8B9BCB">
+    <rect x="356" y="280" width="14" height="48" rx="7"/>
+    <rect x="530" y="280" width="14" height="48" rx="7"/>
+  </g>
+  <g fill="#5A73C2">
+    <rect x="383" y="255" width="14" height="73" rx="7"/>
+    <rect x="503" y="255" width="14" height="73" rx="7"/>
+  </g>
+  <path d="M420 378V248A30 30 0 0 1 480 248V341L441 299L420 378Z" fill="#3D6BFF"/>
+  <circle cx="450" cy="250" r="10" fill="#0D1117"/>
+  <g stroke="#2F81F7" stroke-width="2.5">
+    <path d="M544 294H562C600 294 590 238 634 238H656"/>
+    <path d="M544 294H590C615 294 622 318 656 318"/>
+    <path d="M544 294H562C608 294 588 398 634 398H656"/>
+  </g>
+  <g fill="#2F81F7">
+    <circle cx="656" cy="238" r="4"/>
+    <circle cx="656" cy="318" r="4"/>
+    <circle cx="656" cy="398" r="4"/>
+  </g>
+  <g fill="#161B22" stroke="#30363D" stroke-width="2">
+    <rect x="670" y="205" width="282" height="66" rx="8"/>
+    <rect x="670" y="285" width="282" height="66" rx="8"/>
+    <rect x="670" y="365" width="282" height="66" rx="8"/>
+  </g>
+  <g stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#58A6FF">
+      <path d="M696 227H720V245H707L700 251V245H696Z"/>
+      <path d="M703 234H713"/>
+    </g>
+    <g stroke="#F85149">
+      <path d="M708 306V321M708 328V329"/>
+      <circle cx="708" cy="318" r="15"/>
+    </g>
+    <g stroke="#3FB950">
+      <circle cx="700" cy="387" r="4"/>
+      <circle cx="700" cy="410" r="4"/>
+      <circle cx="719" cy="410" r="4"/>
+      <path d="M700 391V406M710 386V393C710 402 719 398 719 406"/>
+    </g>
+  </g>
+  <g font-family="'IBM Plex Sans', 'Segoe UI', sans-serif" font-size="34" font-weight="600" fill="#F0F6FC">
+    <text x="742" y="250">Review</text>
+    <text x="742" y="330">Fix</text>
+    <text x="742" y="410">Merge</text>
+  </g>
+</svg>
